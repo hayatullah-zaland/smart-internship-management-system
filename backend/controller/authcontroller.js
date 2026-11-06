@@ -3,6 +3,75 @@ import validator from 'validator';
 import jwt from 'jsonwebtoken';
 import { User } from '../model/user.model.js';
 
+export function getProfile(req, res) {
+  // requireAuth has already checked the token and found this user.
+  const user = req.user;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      },
+    },
+  });
+}
+
+export async function updateProfile(req, res) {
+  // 1. Accept either a name, an email, or both.
+  let { name, email } = req.body || {};
+  if (name === undefined && email === undefined) {
+    return res.status(400).json({ success: false, message: 'Please provide a name or email to update.' });
+  }
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 100) {
+      return res.status(400).json({ success: false, message: 'Name must be between 2 and 100 characters.' });
+    }
+    name = name.trim();
+  }
+
+  if (email !== undefined) {
+    if (typeof email !== 'string') {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+    }
+    email = email.trim().toLowerCase();
+    if (email.length > 254 || !validator.isEmail(email)) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid email address.' });
+    }
+
+    // 2. Allow the current email, but not another account's email.
+    const existingUser = await User.exists({ email, _id: { $ne: req.user._id } });
+    if (existingUser) {
+      return res.status(409).json({ success: false, message: 'An account with this email already exists.' });
+    }
+  }
+
+  // 3. Update only these two fields on the authenticated account.
+  const user = req.user;
+  if (name !== undefined) user.name = name;
+  if (email !== undefined) user.email = email;
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully.',
+    data: {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+      },
+    },
+  });
+}
+
 export async function signup(req, res) {
   // 1. Get and check the form fields.
   let { name, email, password } = req.body || {};

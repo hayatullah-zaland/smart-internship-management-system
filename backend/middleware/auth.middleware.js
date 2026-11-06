@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../model/user.model.js';
 
-export async function requireAdmin(req, res, next) {
+export async function requireAuth(req, res, next) {
   // Postman sends the token as: Authorization: Bearer YOUR_TOKEN
   const authorization = req.headers.authorization || '';
   if (!authorization.startsWith('Bearer ')) {
@@ -22,10 +22,14 @@ export async function requireAdmin(req, res, next) {
   if (!user || !user.isActive) {
     return res.status(401).json({ success: false, message: 'Your account is unavailable.' });
   }
-  if (user.role !== 'admin') {
+  req.user = user;
+  next();
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ success: false, message: 'Only administrators can create role-based accounts.' });
   }
 
-  req.user = user;
   next();
 }
