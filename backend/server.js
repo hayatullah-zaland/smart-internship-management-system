@@ -29,6 +29,9 @@ app.use(errorHandler);
 async function startServer() {
   try {
     if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is required');
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      throw new Error('JWT_SECRET must have at least 32 characters');
+    }
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
     await User.init(); // Wait for the unique email index.
     console.log('MongoDB connected successfully.');
@@ -42,7 +45,7 @@ async function startServer() {
       process.exitCode = 1;
     });
   } catch {
-    console.error('Startup failed. Check MONGODB_URI in .env and make sure MongoDB is available.');
+    console.error('Startup failed. Check MONGODB_URI, JWT_SECRET, and MongoDB availability.');
     await mongoose.disconnect();
     process.exitCode = 1;
   }
