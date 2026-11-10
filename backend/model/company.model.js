@@ -5,6 +5,7 @@ const companySchema = new mongoose.Schema({
   address: { type: String, required: true, trim: true, maxlength: 300 },
   contactEmail: { type: String, required: true, trim: true, lowercase: true, maxlength: 254 },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  representative: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
 }, { timestamps: true });
 
 export const Company = mongoose.model('Company', companySchema);

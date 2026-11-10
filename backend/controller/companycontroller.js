@@ -1,5 +1,36 @@
 import validator from 'validator';
 import { Company } from '../model/company.model.js';
+import { User } from '../model/user.model.js';
+
+export async function assignRepresentative(req, res) {
+  const { id } = req.params;
+  const { representativeId } = req.body || {};
+  if (!/^[a-f0-9]{24}$/i.test(id) || typeof representativeId !== 'string' ||
+      !/^[a-f0-9]{24}$/i.test(representativeId)) {
+    return res.status(400).json({ success: false, message: 'Please provide valid company and representative IDs.' });
+  }
+
+  const company = await Company.findById(id);
+  if (!company) {
+    return res.status(404).json({ success: false, message: 'Company not found.' });
+  }
+  const representative = await User.findById(representativeId);
+  if (!representative) {
+    return res.status(404).json({ success: false, message: 'Representative account not found.' });
+  }
+  if (!representative.isActive || representative.role !== 'company_representative') {
+    return res.status(400).json({ success: false, message: 'Please choose an active company representative account.' });
+  }
+
+  // Each company has one representative; assigning again replaces that link.
+  company.representative = representative._id;
+  await company.save();
+  res.status(200).json({
+    success: true,
+    message: 'Company representative assigned successfully.',
+    data: { company },
+  });
+}
 
 export async function createCompany(req, res) {
   let { name, address, contactEmail } = req.body || {};

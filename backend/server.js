@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import companyRoutes from './routes/company.routes.js';
+import opportunityRoutes from './routes/opportunity.routes.js';
 import { User } from './model/user.model.js';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
 
@@ -26,6 +27,7 @@ app.get('/api/v1/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/companies', companyRoutes);
+app.use('/api/v1/opportunities', opportunityRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
