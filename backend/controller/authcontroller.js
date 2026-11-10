@@ -72,6 +72,42 @@ export async function updateProfile(req, res) {
   });
 }
 
+export async function changePassword(req, res) {
+  // 1. Check both passwords before accessing the database.
+  const { currentPassword, newPassword } = req.body || {};
+  if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+    return res.status(400).json({ success: false, message: 'Current and new passwords are required and must be text.' });
+  }
+  if (!currentPassword || Buffer.byteLength(currentPassword, 'utf8') > 72) {
+    return res.status(400).json({ success: false, message: 'Please enter a valid current password.' });
+  }
+  if (newPassword.length < 8 || Buffer.byteLength(newPassword, 'utf8') > 72) {
+    return res.status(400).json({
+      success: false,
+      message: 'New password must have at least 8 characters and must not exceed 72 UTF-8 bytes.',
+    });
+  }
+
+  // 2. Load the hidden password hash for the signed-in account only.
+  const user = await User.findById(req.user.id).select('+passwordHash');
+  if (!user || !user.isActive) {
+    return res.status(401).json({ success: false, message: 'Your account is unavailable.' });
+  }
+  const passwordMatches = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!passwordMatches) {
+    return res.status(400).json({ success: false, message: 'Current password is incorrect.' });
+  }
+  if (currentPassword === newPassword) {
+    return res.status(400).json({ success: false, message: 'New password must be different from the current password.' });
+  }
+
+  // 3. Save only the hash, never the plain-text password.
+  user.passwordHash = await bcrypt.hash(newPassword, 12);
+  await user.save();
+
+  res.status(200).json({ success: true, message: 'Password changed successfully.' });
+}
+
 export async function signup(req, res) {
   // 1. Get and check the form fields.
   let { name, email, password } = req.body || {};
