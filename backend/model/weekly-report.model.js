@@ -9,7 +9,8 @@ const weeklyReportSchema = new mongoose.Schema({
   summary: { type: String, required: true, trim: true, maxlength: 5000 },
   learning: { type: String, required: true, trim: true, maxlength: 3000 },
   challenges: { type: String, trim: true, maxlength: 2000, default: '' },
-  status: { type: String, enum: ['draft'], default: 'draft' },
+  status: { type: String, enum: ['draft', 'submitted'], default: 'draft' },
+  submittedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 weeklyReportSchema.index({ internship: 1, weekNumber: 1 }, { unique: true });

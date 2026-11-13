@@ -53,6 +53,75 @@ export async function createWeeklyReport(req, res) {
   }
 }
 
+export async function updateWeeklyReport(req, res) {
+  if (req.user.role !== 'student') {
+    return res.status(403).json({ success: false, message: 'Only students can edit weekly reports.' });
+  }
+  const { id } = req.params;
+  if (!/^[a-f0-9]{24}$/i.test(id)) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid report ID.' });
+  }
+
+  const report = await WeeklyReport.findOne({ _id: id, student: req.user.id });
+  if (!report) return res.status(404).json({ success: false, message: 'Your weekly report was not found.' });
+  if (report.status !== 'draft') {
+    return res.status(409).json({ success: false, message: 'Only draft reports can be edited.' });
+  }
+
+  // Keep old values when the student updates only one field.
+  const body = req.body || {};
+  if (body.summary === undefined && body.learning === undefined && body.challenges === undefined) {
+    return res.status(400).json({ success: false, message: 'Provide summary, learning, or challenges to update.' });
+  }
+  const summary = body.summary === undefined ? report.summary : body.summary;
+  const learning = body.learning === undefined ? report.learning : body.learning;
+  const challenges = body.challenges === undefined ? report.challenges : body.challenges;
+  if (typeof summary !== 'string' || !summary.trim() || summary.trim().length > 5000 ||
+      typeof learning !== 'string' || !learning.trim() || learning.trim().length > 3000 ||
+      typeof challenges !== 'string' || challenges.trim().length > 2000) {
+    return res.status(400).json({
+      success: false,
+      message: 'Summary (1-5000 characters) and learning (1-3000) are required. Challenges are optional, up to 2000 characters.',
+    });
+  }
+  const active = await Internship.exists({ _id: report.internship, student: req.user.id, status: 'active' });
+  if (!active) return res.status(409).json({ success: false, message: 'Weekly reports require an active internship.' });
+
+  // Matching the draft and version prevents overwriting a submitted or newer report.
+  const updated = await WeeklyReport.findOneAndUpdate(
+    { _id: id, student: req.user.id, status: 'draft', __v: report.__v },
+    { $set: { summary: summary.trim(), learning: learning.trim(), challenges: challenges.trim() }, $inc: { __v: 1 } },
+    { new: true, runValidators: true },
+  );
+  if (!updated) return res.status(409).json({ success: false, message: 'Report changed during your request. Refresh and try again.' });
+  res.json({ success: true, message: 'Weekly report draft updated.', data: { report: updated } });
+}
+
+export async function submitWeeklyReport(req, res) {
+  if (req.user.role !== 'student') {
+    return res.status(403).json({ success: false, message: 'Only students can submit weekly reports.' });
+  }
+  const { id } = req.params;
+  if (!/^[a-f0-9]{24}$/i.test(id)) {
+    return res.status(400).json({ success: false, message: 'Please provide a valid report ID.' });
+  }
+  const report = await WeeklyReport.findOne({ _id: id, student: req.user.id });
+  if (!report) return res.status(404).json({ success: false, message: 'Your weekly report was not found.' });
+  if (report.status !== 'draft') {
+    return res.status(409).json({ success: false, message: 'Only draft reports can be submitted.' });
+  }
+  const active = await Internship.exists({ _id: report.internship, student: req.user.id, status: 'active' });
+  if (!active) return res.status(409).json({ success: false, message: 'Weekly reports require an active internship.' });
+
+  const updated = await WeeklyReport.findOneAndUpdate(
+    { _id: id, student: req.user.id, status: 'draft' },
+    { $set: { status: 'submitted', submittedAt: new Date() }, $inc: { __v: 1 } },
+    { new: true, runValidators: true },
+  );
+  if (!updated) return res.status(409).json({ success: false, message: 'Report is no longer a draft. Refresh and try again.' });
+  res.json({ success: true, message: 'Weekly report submitted successfully.', data: { report: updated } });
+}
+
 export async function getWeeklyReports(req, res) {
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 20);
@@ -63,7 +132,7 @@ export async function getWeeklyReports(req, res) {
   let filter;
   if (req.user.role === 'student') filter = { student: req.user.id };
   else if (req.user.role === 'admin') filter = {};
-  else return res.status(403).json({ success: false, message: 'Only students and admins can access weekly drafts here.' });
+  else return res.status(403).json({ success: false, message: 'Only students and admins can access weekly reports here.' });
 
   const reports = await WeeklyReport.find(filter)
     .populate('student', 'name email')
