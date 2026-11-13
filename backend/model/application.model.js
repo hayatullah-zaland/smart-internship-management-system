@@ -8,6 +8,9 @@ const applicationSchema = new mongoose.Schema({
     enum: ['pending', 'under_review', 'approved', 'rejected', 'withdrawn'],
     default: 'pending',
   },
+  reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  reviewedAt: { type: Date, default: null },
+  rejectionReason: { type: String, trim: true, maxlength: 1000, default: '' },
 }, { timestamps: true });
 
 // The database also rejects simultaneous duplicate applications.

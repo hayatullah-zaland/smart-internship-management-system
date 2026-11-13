@@ -8,8 +8,10 @@ import userRoutes from './routes/user.routes.js';
 import companyRoutes from './routes/company.routes.js';
 import opportunityRoutes from './routes/opportunity.routes.js';
 import applicationRoutes from './routes/application.routes.js';
+import internshipRoutes from './routes/internship.routes.js';
 import { User } from './model/user.model.js';
 import { Application } from './model/application.model.js';
+import { Internship } from './model/internship.model.js';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
 
 // Load settings from the .env file.
@@ -31,6 +33,7 @@ app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/companies', companyRoutes);
 app.use('/api/v1/opportunities', opportunityRoutes);
 app.use('/api/v1/applications', applicationRoutes);
+app.use('/api/v1/internships', internshipRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
@@ -44,6 +47,7 @@ async function startServer() {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
     await User.init(); // Wait for the unique email index.
     await Application.init(); // Wait for the duplicate-application index.
+    await Internship.init(); // Enforce seat, application, and ongoing-student uniqueness.
     console.log('MongoDB connected successfully.');
 
     const server = app.listen(PORT, () => {
