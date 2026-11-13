@@ -11,11 +11,18 @@ import applicationRoutes from './routes/application.routes.js';
 import internshipRoutes from './routes/internship.routes.js';
 import dailyReportRoutes from './routes/daily-report.routes.js';
 import weeklyReportRoutes from './routes/weekly-report.routes.js';
+import departmentRoutes from './routes/department.routes.js';
+import studentRoutes from './routes/student.routes.js';
+import evaluationRoutes from './routes/evaluation.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 import { User } from './model/user.model.js';
 import { Application } from './model/application.model.js';
 import { Internship } from './model/internship.model.js';
 import { DailyReport } from './model/daily-report.model.js';
 import { WeeklyReport } from './model/weekly-report.model.js';
+import { Department } from './model/department.model.js';
+import { StudentProfile } from './model/student-profile.model.js';
+import { Evaluation } from './model/evaluation.model.js';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
 
 // Load settings from the .env file.
@@ -40,6 +47,10 @@ app.use('/api/v1/applications', applicationRoutes);
 app.use('/api/v1/internships', internshipRoutes);
 app.use('/api/v1/daily-reports', dailyReportRoutes);
 app.use('/api/v1/weekly-reports', weeklyReportRoutes);
+app.use('/api/v1/departments', departmentRoutes);
+app.use('/api/v1/students', studentRoutes);
+app.use('/api/v1/evaluations', evaluationRoutes);
+app.use('/api/v1/dashboard', dashboardRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
@@ -53,9 +64,21 @@ async function startServer() {
     await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 10000 });
     await User.init(); // Wait for the unique email index.
     await Application.init(); // Wait for the duplicate-application index.
+    // Backfill the simple ongoing flag on placements created before this field existed.
+    await Internship.updateMany(
+      { isOngoing: { $exists: false }, status: { $in: ['assigned', 'active'] } },
+      { $set: { isOngoing: true } },
+    );
+    await Internship.updateMany(
+      { isOngoing: { $exists: false }, status: { $in: ['completed', 'cancelled'] } },
+      { $set: { isOngoing: false } },
+    );
     await Internship.init(); // Enforce seat, application, and ongoing-student uniqueness.
     await DailyReport.init(); // One daily report per internship and calendar date.
     await WeeklyReport.init(); // One weekly report per internship and week number.
+    await Department.init();
+    await StudentProfile.init();
+    await Evaluation.init();
     console.log('MongoDB connected successfully.');
 
     const server = app.listen(PORT, () => {

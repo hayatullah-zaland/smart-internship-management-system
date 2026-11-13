@@ -35,7 +35,7 @@ export async function updateInternshipStatus(req, res) {
   const updated = await Internship.findOneAndUpdate(
     { _id: id, status: internship.status },
     {
-      $set: { status },
+      $set: { status, isOngoing: status === 'active' },
       $push: { statusHistory: {
         from: internship.status, to: status, changedBy: req.user.id,
         changedAt: new Date(), reason: reason?.trim() || '',

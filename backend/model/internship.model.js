@@ -11,6 +11,10 @@ const internshipSchema = new mongoose.Schema({
   endDate: { type: Date, required: true },
   slot: { type: Number, required: true, min: 1, max: 1000, validate: Number.isInteger, select: false },
   status: { type: String, enum: ['assigned', 'active', 'completed', 'cancelled'], default: 'assigned' },
+  isOngoing: {
+    type: Boolean,
+    default: function () { return this.status === 'assigned' || this.status === 'active'; },
+  },
   statusHistory: {
     type: [{
       _id: false,
@@ -28,7 +32,8 @@ internshipSchema.index({ application: 1 }, { unique: true });
 internshipSchema.index({ opportunity: 1, slot: 1 }, { unique: true });
 internshipSchema.index({ student: 1 }, {
   unique: true,
-  partialFilterExpression: { status: { $in: ['assigned', 'active'] } },
+  name: 'one_ongoing_internship_per_student',
+  partialFilterExpression: { isOngoing: true },
 });
 
 export const Internship = mongoose.model('Internship', internshipSchema);

@@ -28,7 +28,8 @@ test('internship transitions enforce admin access, history and terminal states',
     assert.equal(filter._id, id);
     assert.equal(filter.status, stored.status);
     assert.deepEqual(options, { new: true, runValidators: true });
-    assert.deepEqual(Object.keys(update.$set), ['status']);
+    assert.deepEqual(Object.keys(update.$set).sort(), ['status', 'isOngoing'].sort());
+    assert.equal(update.$set.isOngoing, update.$set.status === 'active');
     const event = update.$push.statusHistory;
     assert.equal(event.from, stored.status);
     assert.equal(event.to, update.$set.status);
