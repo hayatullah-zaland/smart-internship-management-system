@@ -1,10 +1,11 @@
 import { useContext, useState } from 'react'
 import { ArrowRight, CheckCircle2, Eye, EyeOff } from 'lucide-react'
+import { Link, Navigate } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 import AuthLayout from '../components/AuthLayout'
 
-export default function Signup({ onGoToLogin }) {
-  const { signUp } = useContext(AuthContext)
+export default function Signup() {
+  const { user, token, signUp } = useContext(AuthContext)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -52,6 +53,10 @@ export default function Signup({ onGoToLogin }) {
     }
   }
 
+  if (user && token) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return (
     <AuthLayout headingId="signup-heading">
       {created ? (
@@ -61,9 +66,9 @@ export default function Signup({ onGoToLogin }) {
           <p className="mt-3 text-sm leading-6 text-base-content/75">
             Your student account is ready. Sign in with your email and password.
           </p>
-          <button className="btn btn-primary mt-7 w-full" type="button" onClick={onGoToLogin}>
+          <Link className="btn btn-primary mt-7 w-full" to="/login">
             Go to sign in <ArrowRight size={18} aria-hidden="true" />
-          </button>
+          </Link>
         </div>
       ) : (
         <>
@@ -114,7 +119,8 @@ export default function Signup({ onGoToLogin }) {
           </form>
           <p className="mt-6 text-center text-sm text-base-content/65">
             Already have an account?{' '}
-            <button className="link link-primary font-medium" type="button" onClick={onGoToLogin} disabled={loading}>Sign in</button>
+            <Link className="link link-primary font-medium" to="/login" aria-disabled={loading}
+              onClick={(event) => { if (loading) event.preventDefault() }}>Sign in</Link>
           </p>
         </>
       )}
