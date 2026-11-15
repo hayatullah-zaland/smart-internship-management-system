@@ -1,9 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { LogOut, RotateCw } from 'lucide-react'
 import { AuthContext } from './AuthContext'
+import { clearSessionToken, fetchSessionUser, isValidSessionUser, readSessionToken, saveSessionToken } from './authSession'
+import AuthLayout from '../components/AuthLayout'
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
+  const [token, setToken] = useState(readSessionToken)
+  const [restoreError, setRestoreError] = useState('')
+  const [restoreAttempt, setRestoreAttempt] = useState(0)
+
+  useEffect(() => {
+    if (!token || user) return
+    const controller = new AbortController()
+
+    async function restoreSession() {
+      try {
+        const restoredUser = await fetchSessionUser(token, controller.signal)
+        if (!controller.signal.aborted) setUser(restoredUser)
+      } catch (error) {
+        if (controller.signal.aborted) return
+        if (error.status === 401) {
+          clearSessionToken()
+          setToken(null)
+          return
+        }
+        setRestoreError('Could not restore your session. Please check your connection and try again.')
+      }
+    }
+
+    restoreSession()
+    return () => controller.abort()
+  }, [token, user, restoreAttempt])
 
   async function signIn(email, password) {
     const response = await fetch('/api/v1/auth/signin', {
@@ -20,11 +48,13 @@ export default function AuthProvider({ children }) {
     if (!response.ok || !result.success) {
       throw new Error(result.message || 'Unable to sign in. Please try again.')
     }
-    if (!result.data?.user || typeof result.data.token !== 'string') {
+    if (!isValidSessionUser(result.data?.user) || typeof result.data.token !== 'string' || !result.data.token.trim()) {
       throw new Error('Unable to sign in. Please try again.')
     }
 
-    // Keep the session in memory for this first frontend step.
+    // Save only the token; restore current account details from the server.
+    saveSessionToken(result.data.token)
+    setRestoreError('')
     setToken(result.data.token)
     setUser(result.data.user)
   }
@@ -47,8 +77,41 @@ export default function AuthProvider({ children }) {
   }
 
   function signOut() {
+    clearSessionToken()
+    setRestoreError('')
     setUser(null)
     setToken(null)
+  }
+
+  function retryRestore() {
+    setRestoreError('')
+    setRestoreAttempt((attempt) => attempt + 1)
+  }
+
+  // Keep route guards from redirecting while the saved session is checked.
+  if (token && !user) {
+    return (
+      <AuthLayout headingId="restore-heading">
+        <h1 id="restore-heading" className="text-xl font-semibold">{restoreError ? 'Connection problem' : 'Restoring your session'}</h1>
+        {restoreError ? (
+          <>
+            <p role="alert" className="mt-4 text-sm leading-6 text-error">{restoreError}</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button type="button" className="btn btn-primary" onClick={retryRestore}>
+                <RotateCw size={18} aria-hidden="true" /> Retry
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={signOut}>
+                <LogOut size={18} aria-hidden="true" /> Sign out
+              </button>
+            </div>
+          </>
+        ) : (
+          <p role="status" className="mt-4 flex items-center gap-3 text-sm text-base-content/70">
+            <span className="loading loading-spinner loading-sm" aria-hidden="true" /> Checking your account...
+          </p>
+        )}
+      </AuthLayout>
+    )
   }
 
   return (
