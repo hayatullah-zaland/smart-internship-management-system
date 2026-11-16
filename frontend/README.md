@@ -19,7 +19,7 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 - `npm run build`: create a production build.
 - `npm run preview`: preview the production build.
 - `npm run lint`: check the JavaScript code.
-- `npm test`: run session, dashboard, student-profile, department API and rendering tests using Node's built-in test runner.
+- `npm test`: run session, dashboard, student-profile, department, opportunity API and rendering tests using Node's built-in test runner.
 
 ## Main Files
 
@@ -30,17 +30,20 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 - [src/pages/Dashboard.jsx](./src/pages/Dashboard.jsx): loads role-specific counters and displays the signed-in dashboard and account details.
 - [src/pages/StudentProfile.jsx](./src/pages/StudentProfile.jsx): loads the student's academic profile and available departments.
 - [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
+- [src/pages/Opportunities.jsx](./src/pages/Opportunities.jsx): authenticated opportunity browsing with page URLs and refresh/retry.
+- [src/components/OpportunityList.jsx](./src/components/OpportunityList.jsx): opportunity summaries, expandable descriptions and previous/next controls.
+- [src/context/opportunityApi.js](./src/context/opportunityApi.js): paginated browsing requests and validation of opportunity/company data.
 - [src/components/DepartmentForm.jsx](./src/components/DepartmentForm.jsx): name/code form with validation and server-confirmed creation.
 - [src/components/DepartmentList.jsx](./src/components/DepartmentList.jsx): department table, loading/empty states and retry.
 - [src/context/departmentApi.js](./src/context/departmentApi.js): shared department listing and admin creation requests.
-- [src/context/apiRequest.js](./src/context/apiRequest.js): bearer/JSON request helper shared by profile and department APIs.
+- [src/context/apiRequest.js](./src/context/apiRequest.js): bearer/JSON request helper shared by profile, department and opportunity APIs.
 - [src/components/StudentProfileForm.jsx](./src/components/StudentProfileForm.jsx): academic form, field validation, save/reset and empty-department state.
 - [src/context/studentProfileApi.js](./src/context/studentProfileApi.js): authenticated profile requests, field validation and response normalization.
 - [src/components/DashboardStats.jsx](./src/components/DashboardStats.jsx): summary metrics, loading placeholders, refresh and error/retry states.
 - [src/context/dashboardApi.js](./src/context/dashboardApi.js): authenticated dashboard request and role/counter validation.
 - [src/components/Navbar.jsx](./src/components/Navbar.jsx): shared signed-in navigation with branding, account name/role, theme toggle and sign-out.
 - [src/components/NavbarClock.jsx](./src/components/NavbarClock.jsx): live date/time display using the Asia/Kabul timezone.
-- [src/components/Sidebar.jsx](./src/components/Sidebar.jsx): dashboard/account links, student-only My profile and admin-only Departments.
+- [src/components/Sidebar.jsx](./src/components/Sidebar.jsx): dashboard/account/opportunity links, student-only My profile and admin-only Departments.
 - [src/components/DashboardLayout.jsx](./src/components/DashboardLayout.jsx): shared desktop sidebar, sticky navbar, main content and mobile navigation dialog.
 - [src/components/ProtectedRoute.jsx](./src/components/ProtectedRoute.jsx): requires a session and optionally restricts a route to one role.
 - [src/components/AuthLayout.jsx](./src/components/AuthLayout.jsx): shared header, theme switch, form panel and footer.
@@ -123,6 +126,7 @@ React Router gives each page its own URL:
 - `/dashboard`: basic protected page with account details and sign-out.
 - `/profile`: academic profile for signed-in students; other roles return to `/dashboard`.
 - `/departments`: department list and creation form for admins; other roles return to `/dashboard`.
+- `/opportunities`: open internship opportunities for every signed-in role; `?page=2` selects another page.
 - `/` and unknown paths: redirect to `/login` without adding a history entry.
 
 The login and signup pages use `Link` instead of callback buttons. Navigation
@@ -203,6 +207,7 @@ between desktop and mobile navigation:
   to the existing account section. It is not a separate profile-editing page.
 - **My profile** opens `/profile` for students only, with their academic details.
 - **Departments** opens `/departments` for admins only, with the department list and creation form.
+- **Opportunities** opens `/opportunities` for every signed-in role, with the open-opportunity browsing list.
 
 The selected link has a visual indicator and `aria-current`. Only existing
 destinations are included; no unfinished module links or fake statistics were
@@ -408,3 +413,60 @@ permission errors, malformed responses, timeouts/cancellation, table states,
 escaping, navigation and the admin route guard. They use mock API data and SSR
 markup, not real database inserts or an authenticated browser workflow. No new
 dependencies or backend/database changes are part of this frontend step.
+
+## Opportunities
+
+Sign in and open **Opportunities** from the sidebar, or visit `/opportunities`.
+All four existing roles can browse, matching the backend's authenticated GET
+permission. The page reuses the dashboard layout, themes and session guard.
+
+It calls `GET /api/v1/opportunities?page=1&limit=10`. The backend returns only
+open opportunities whose deadline has not passed at request time, with populated
+company names and addresses. The client checks IDs, pagination, titles,
+descriptions, company data, deadlines, capacities and status before displaying
+results. Invalid responses show an error rather than a misleading empty list.
+
+Each summary shows the title, company, deadline and capacity. Its native
+`details`/`summary` control opens the full plain-text description and company
+address without another request or a new backend detail endpoint. Text is
+escaped rather than rendered as HTML. If a referenced company is unavailable,
+the opportunity explicitly says so instead of inventing company information.
+
+Deadlines are displayed in **Asia/Kabul** time with an absolute `dateTime` value.
+Capacity is the opportunity's total advertised capacity, not remaining seats.
+This is a read-only snapshot: there is no countdown, polling or automatic
+deadline-expiry removal while a page stays open. **Refresh opportunities**
+requests the latest backend-filtered data.
+
+Pages use the URL query, such as `/opportunities?page=2`, so reload and browser
+Back/Forward retain page selection. Invalid page query values use page one.
+There is no total count in the API: Next is enabled after a full page of ten
+results, so an exact multiple of ten can lead to one final empty page. Previous
+remains available there. No total page count, unread count or application count
+is invented.
+
+Loading hides earlier-page/account data and disables pagination. Empty pages
+show an honest empty state, while connection/server failures offer **Retry**.
+Requests use the shared 15-second timeout, abort on page changes/unmount and
+clear the session on HTTP 401. Other errors are shown without signing out.
+
+This step does not publish opportunities or submit applications. To see real
+data, use an existing open opportunity or the existing backend's
+`POST /api/v1/opportunities` as a company representative assigned to that company,
+with a future deadline. No sample records are inserted by the frontend or tests.
+Publishing forms and student application submission remain separate next steps.
+
+To check locally:
+
+1. Sign in and visit `/opportunities`; check title, company, capacity and Kabul deadline for real records.
+2. Open and close a summary by mouse or keyboard and check the full description/address.
+3. With more than ten open records, use Previous/Next, reload and browser Back/Forward.
+4. Check an empty page, refresh, backend connection failures and Retry.
+5. Check both themes and narrow screens with long titles and descriptions.
+6. Sign out and reopen the URL; the login guard must prevent access.
+
+Tests use mock API responses and SSR markup for request contracts, field
+validation, pagination boundaries, errors, cancellation/timeouts, date formatting,
+escaped details, empty/loading states and role-aware navigation. They do not
+execute native details interaction, browser history or an authenticated live
+browsing workflow. No new dependencies or backend changes were needed.

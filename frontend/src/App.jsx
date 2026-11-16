@@ -3,6 +3,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
 import Departments from './pages/Departments'
 import Login from './pages/Login'
+import Opportunities from './pages/Opportunities'
 import Signup from './pages/Signup'
 import StudentProfile from './pages/StudentProfile'
 
@@ -25,6 +26,11 @@ function App() {
       <Route path="/departments" element={
         <ProtectedRoute requiredRole="admin">
           <Departments />
+        </ProtectedRoute>
+      } />
+      <Route path="/opportunities" element={
+        <ProtectedRoute>
+          <Opportunities />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/login" replace />} />

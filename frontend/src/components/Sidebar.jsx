@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { GraduationCap, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
+import { BriefcaseBusiness, GraduationCap, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 
@@ -8,6 +8,7 @@ export default function Sidebar({ onNavigate }) {
   const { pathname, hash } = useLocation()
   const links = [
     { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard, current: pathname === '/dashboard' && hash !== '#account' },
+    { to: '/opportunities', label: 'Opportunities', Icon: BriefcaseBusiness, current: pathname === '/opportunities' },
     { to: '/dashboard#account', label: 'Account details', Icon: UserRound, current: pathname === '/dashboard' && hash === '#account' },
   ]
   if (user.role === 'student') {

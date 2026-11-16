@@ -12,6 +12,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   let pageTitle = hash === '#account' ? 'Account details' : 'Dashboard'
   if (pathname === '/profile') pageTitle = 'My profile'
   if (pathname === '/departments') pageTitle = 'Departments'
+  if (pathname === '/opportunities') pageTitle = 'Opportunities'
   const role = user.role.replaceAll('_', ' ')
   const initial = Array.from(user.name.trim())[0]?.toUpperCase() || 'U'
 
