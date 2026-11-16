@@ -8,7 +8,10 @@ import ThemeToggle from './ThemeToggle'
 
 export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   const { user, signOut } = useContext(AuthContext)
-  const { hash } = useLocation()
+  const { pathname, hash } = useLocation()
+  let pageTitle = hash === '#account' ? 'Account details' : 'Dashboard'
+  if (pathname === '/profile') pageTitle = 'My profile'
+  if (pathname === '/departments') pageTitle = 'Departments'
   const role = user.role.replaceAll('_', ' ')
   const initial = Array.from(user.name.trim())[0]?.toUpperCase() || 'U'
 
@@ -29,7 +32,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
             <li className="text-base-content/70">Workspace</li>
             <li aria-hidden="true"><ChevronRight size={15} className="text-base-content/35" /></li>
             <li className="truncate font-medium" aria-current="location">
-              {hash === '#account' ? 'Account details' : 'Dashboard'}
+              {pageTitle}
             </li>
           </ol>
         </div>

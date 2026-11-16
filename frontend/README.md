@@ -19,7 +19,7 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 - `npm run build`: create a production build.
 - `npm run preview`: preview the production build.
 - `npm run lint`: check the JavaScript code.
-- `npm test`: run the session, dashboard API and rendering tests using Node's built-in test runner.
+- `npm test`: run session, dashboard, student-profile, department API and rendering tests using Node's built-in test runner.
 
 ## Main Files
 
@@ -28,13 +28,21 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 - [src/pages/Login.jsx](./src/pages/Login.jsx): email/password form and automatic redirect after sign-in.
 - [src/pages/Signup.jsx](./src/pages/Signup.jsx): student registration and account-created confirmation.
 - [src/pages/Dashboard.jsx](./src/pages/Dashboard.jsx): loads role-specific counters and displays the signed-in dashboard and account details.
+- [src/pages/StudentProfile.jsx](./src/pages/StudentProfile.jsx): loads the student's academic profile and available departments.
+- [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
+- [src/components/DepartmentForm.jsx](./src/components/DepartmentForm.jsx): name/code form with validation and server-confirmed creation.
+- [src/components/DepartmentList.jsx](./src/components/DepartmentList.jsx): department table, loading/empty states and retry.
+- [src/context/departmentApi.js](./src/context/departmentApi.js): shared department listing and admin creation requests.
+- [src/context/apiRequest.js](./src/context/apiRequest.js): bearer/JSON request helper shared by profile and department APIs.
+- [src/components/StudentProfileForm.jsx](./src/components/StudentProfileForm.jsx): academic form, field validation, save/reset and empty-department state.
+- [src/context/studentProfileApi.js](./src/context/studentProfileApi.js): authenticated profile requests, field validation and response normalization.
 - [src/components/DashboardStats.jsx](./src/components/DashboardStats.jsx): summary metrics, loading placeholders, refresh and error/retry states.
 - [src/context/dashboardApi.js](./src/context/dashboardApi.js): authenticated dashboard request and role/counter validation.
 - [src/components/Navbar.jsx](./src/components/Navbar.jsx): shared signed-in navigation with branding, account name/role, theme toggle and sign-out.
 - [src/components/NavbarClock.jsx](./src/components/NavbarClock.jsx): live date/time display using the Asia/Kabul timezone.
-- [src/components/Sidebar.jsx](./src/components/Sidebar.jsx): active navigation links for the dashboard and its account-details section.
+- [src/components/Sidebar.jsx](./src/components/Sidebar.jsx): dashboard/account links, student-only My profile and admin-only Departments.
 - [src/components/DashboardLayout.jsx](./src/components/DashboardLayout.jsx): shared desktop sidebar, sticky navbar, main content and mobile navigation dialog.
-- [src/components/ProtectedRoute.jsx](./src/components/ProtectedRoute.jsx): allows dashboard access only when user and token are present.
+- [src/components/ProtectedRoute.jsx](./src/components/ProtectedRoute.jsx): requires a session and optionally restricts a route to one role.
 - [src/components/AuthLayout.jsx](./src/components/AuthLayout.jsx): shared header, theme switch, form panel and footer.
 - [src/components/Brand.jsx](./src/components/Brand.jsx): shared SIMS branding.
 - [src/context/AuthContext.js](./src/context/AuthContext.js): shared authentication context.
@@ -113,6 +121,8 @@ React Router gives each page its own URL:
 - `/login`: sign-in form; signed-in users are redirected to `/dashboard`.
 - `/signup`: student registration; signed-in users are redirected to `/dashboard`.
 - `/dashboard`: basic protected page with account details and sign-out.
+- `/profile`: academic profile for signed-in students; other roles return to `/dashboard`.
+- `/departments`: department list and creation form for admins; other roles return to `/dashboard`.
 - `/` and unknown paths: redirect to `/login` without adding a history entry.
 
 The login and signup pages use `Link` instead of callback buttons. Navigation
@@ -191,6 +201,8 @@ between desktop and mobile navigation:
 - **Dashboard** opens `/dashboard`.
 - **Account details** opens `/dashboard#account`, scrolling and moving focus
   to the existing account section. It is not a separate profile-editing page.
+- **My profile** opens `/profile` for students only, with their academic details.
+- **Departments** opens `/departments` for admins only, with the department list and creation form.
 
 The selected link has a visual indicator and `aria-current`. Only existing
 destinations are included; no unfinished module links or fake statistics were
@@ -269,3 +281,130 @@ and wait for the connection error. Restore the backend and select **Retry**;
 the dashboard should reappear if the token is still valid. After **Sign out**,
 reloading `/dashboard` must continue to show login. An expired token must also
 return to login instead of entering a retry loop.
+
+## Student Profile
+
+Sign in as a **student** and choose **My profile** in the sidebar. This page
+shares the existing navbar, desktop sidebar, mobile drawer and light/dark themes.
+The account name and email are shown read-only; this step does not change login
+details, passwords or roles.
+
+The page uses the existing backend endpoints, with the current bearer token:
+
+- `GET /api/v1/students/me`: load the student's academic profile. A JSON 404
+  means no profile exists yet, so a blank form opens instead of an error.
+- `GET /api/v1/departments?page=1&limit=100`: load department choices, following
+  additional pages until all available departments have been read.
+- `PUT /api/v1/students/me`: create or update the authenticated student's profile.
+
+The saved JSON contains only these four fields:
+
+```json
+{
+  "studentNumber": "STU-001",
+  "departmentId": "<an existing department's MongoDB ID>",
+  "semester": 3,
+  "phone": "+93 700 123 456"
+}
+```
+
+Student numbers accept 1-30 letters, numbers or hyphens and are trimmed and
+uppercased. Semester must be a whole number from 1 to 12. Phone numbers accept
+7-25 characters containing digits, spaces, `+`, `(`, `)` and `-`, with at least
+7 digits. The backend still validates every submission and prevents duplicate
+student numbers. A student never sends a user ID to choose another account.
+
+**Save profile** is enabled after changes. Saving disables inputs and duplicate
+submissions, preserves entered values on errors and shows success only after
+the server confirms valid saved data. **Reset changes** returns to the last
+loaded or successfully saved values; it does not delete a profile. GET returns
+a populated department and PUT returns its ID; both are mapped into the same
+form fields.
+
+When no departments exist, student number, semester and phone remain editable.
+Only department selection and saving wait for an available department. The
+refresh icon beside **Department** reloads choices without clearing unsaved
+form edits, and is also available when the list already has departments.
+An admin can create a real department on the **Departments** page, which uses
+the existing backend `POST /api/v1/departments` endpoint. Postman remains another
+option. Students select an existing department; they cannot create or rename
+departments from their profile form. The frontend does not invent department
+options or create database seed data.
+
+Initial loading hides the form until both requests finish. Loading failures
+offer **Retry**. Save failures keep edits visible. Requests have a 15-second
+timeout and are cancelled when the page/form leaves the screen. HTTP 401 clears
+the session; HTTP 403, conflicts and server failures show errors without signing
+the user out. The route guard and student-only sidebar are navigation controls;
+backend authorization remains responsible for protecting the data.
+
+To check locally:
+
+1. Start the backend and frontend, then sign in as a student and open `/profile`.
+2. If needed, create a department with an admin account at `/departments` (or in Postman), then use **Refresh departments** on the student form.
+3. Enter a unique student number, choose a department, semester and phone, then save.
+4. Reload the page while the token is valid; the saved academic details should return.
+5. Edit the semester/phone and save again; use **Reset changes** to discard later unsaved edits.
+6. Try an invalid semester, short phone and an already-used student number; errors must not erase edits or claim success.
+7. Check both themes, a narrow viewport, mobile navigation and the active sidebar/breadcrumb.
+8. Sign in as another role and open `/profile`; the frontend should return to the dashboard and the API should still enforce its student-only permissions.
+
+Tests use mock API responses and SSR markup. They cover request contracts,
+normalization, validation, missing profiles, full department pagination, failures,
+timeout/cancellation, prefilled/empty forms and student-only navigation. They do
+not insert application data or verify a real authenticated save or browser reload.
+
+## Admin Departments
+
+Sign in with an existing **admin** account and open **Departments** from the
+sidebar, or visit `/departments`. The page shares the current dashboard layout,
+responsive sidebar/navbar and light/dark themes. Other roles do not see this
+link and the route guard sends them to their dashboard. This does not change
+any account's role or replace backend permission checks.
+
+The form accepts a department name (2-100 characters after trimming) and a code
+(1-20 letters, numbers or hyphens). It calls `POST /api/v1/departments` with only
+`name` and `code`. Codes are uppercased and must be unique in the database.
+For example:
+
+```json
+{
+  "name": "Computer Science",
+  "code": "CS"
+}
+```
+
+Inputs are disabled while saving. A confirmed success clears the form, shows
+the created department's name/code and requests the list again. Failed saves,
+including duplicate-code errors, retain entered values. A network timeout may
+happen after the server has saved a department, so its error asks the user to
+refresh the list before retrying; the app does not automatically repeat POSTs.
+
+The list uses `GET /api/v1/departments?page=1&limit=100`, continuing through any
+additional pages. This is the same shared function used by the student-profile
+dropdown and its refresh icon. The table displays names and codes without
+editing or deletion controls. Loading hides older results, an empty response
+shows an empty state, and failures offer **Retry**. Its refresh button reloads
+the list without discarding text currently entered into the creation form.
+
+The GET endpoint is available to authenticated students for their profile
+choices; the backend restricts POST to admins. HTTP 401 clears the session.
+HTTP 403, duplicate-code conflicts and server errors remain visible errors,
+not fake successes or automatic logouts. Both operations use a 15-second
+timeout and abort their client requests when leaving the page.
+
+To check locally:
+
+1. Sign in as admin and visit `/departments`.
+2. Add `Computer Science` with code `CS`, or use another unused code.
+3. Check the success message and refreshed list, then reload to check persistence.
+4. Submit the same code again; the backend conflict must be shown and inputs retained.
+5. Try an empty/short name or invalid code, then check both themes and narrow screens.
+6. Sign in as a student, open **My profile** and refresh the department choices; the new department should be available.
+7. As a student, supervisor or representative, visit `/departments` directly; the admin page should remain inaccessible.
+
+Tests cover creation payloads, validation, shared list visibility, duplicate and
+permission errors, malformed responses, timeouts/cancellation, table states,
+escaping, navigation and the admin route guard. They use mock API data and SSR
+markup, not real database inserts or an authenticated browser workflow. No new
+dependencies or backend/database changes are part of this frontend step.
