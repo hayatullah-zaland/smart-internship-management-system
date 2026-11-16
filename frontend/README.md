@@ -208,6 +208,7 @@ between desktop and mobile navigation:
 - **My profile** opens `/profile` for students only, with their academic details.
 - **Departments** opens `/departments` for admins only, with the department list and creation form.
 - **Opportunities** opens `/opportunities` for every signed-in role, with the open-opportunity browsing list.
+- **My applications** opens `/applications` for students only, with their own submitted applications and current decisions.
 
 The selected link has a visual indicator and `aria-current`. Only existing
 destinations are included; no unfinished module links or fake statistics were
@@ -434,7 +435,7 @@ the opportunity explicitly says so instead of inventing company information.
 
 Deadlines are displayed in **Asia/Kabul** time with an absolute `dateTime` value.
 Capacity is the opportunity's total advertised capacity, not remaining seats.
-This is a read-only snapshot: there is no countdown, polling or automatic
+The opportunity information is a snapshot: there is no countdown, polling or automatic
 deadline-expiry removal while a page stays open. **Refresh opportunities**
 requests the latest backend-filtered data.
 
@@ -450,11 +451,12 @@ show an honest empty state, while connection/server failures offer **Retry**.
 Requests use the shared 15-second timeout, abort on page changes/unmount and
 clear the session on HTTP 401. Other errors are shown without signing out.
 
-This step does not publish opportunities or submit applications. To see real
+This page does not publish opportunities. To see real
 data, use an existing open opportunity or the existing backend's
 `POST /api/v1/opportunities` as a company representative assigned to that company,
 with a future deadline. No sample records are inserted by the frontend or tests.
-Publishing forms and student application submission remain separate next steps.
+Publishing forms remain a separate step. Students can now submit applications
+from the opened opportunity details, as described below.
 
 To check locally:
 
@@ -470,3 +472,64 @@ validation, pagination boundaries, errors, cancellation/timeouts, date formattin
 escaped details, empty/loading states and role-aware navigation. They do not
 execute native details interaction, browser history or an authenticated live
 browsing workflow. No new dependencies or backend changes were needed.
+
+## Student Applications
+
+Sign in as a **student**, open an opportunity's details and select **Apply**.
+The button calls the existing `POST /api/v1/applications` endpoint with only
+`{ "opportunityId": "<the selected opportunity ID>" }`. The backend sets the
+student identity and initial pending status; the frontend never supplies a
+student ID, decision, reviewer or rejection reason. A saved academic profile is
+not an additional requirement of this backend endpoint.
+
+Apply is disabled while submitting, with a synchronous request lock against
+repeated clicks. Success appears only after the response contains a valid saved
+pending application for that opportunity. A duplicate HTTP 409 instead says
+the student has already applied and disables that action. The backend's unique
+index remains responsible for duplicate prevention, including across tabs.
+On page changes, refresh or reload, action state is not persisted; trying an
+already-submitted opportunity safely receives the backend's duplicate response.
+
+Requests retain the shared 15-second timeout and are aborted on unmount. Abort
+cannot undo a server write. Network, timeout, malformed-response and server
+failures may happen after a save, so they do not claim success: the error asks
+the student to check **My applications** before retrying. POST is never retried
+automatically. Known closed/deadline, missing-opportunity and permission errors
+show the backend message. HTTP 401 clears the session; other failures do not.
+
+**My applications** is available from the student sidebar, the Apply action and
+`/applications`. It calls `GET /api/v1/applications/me?page=1&limit=10` without a
+student ID. The backend scopes the records to the signed-in student. The page
+shows the opportunity, company, submission date, opportunity deadline and the
+actual pending, under-review, approved, rejected or withdrawn status. Rejected
+applications show their plain-text rejection reason when present. Missing
+referenced opportunities/companies have explicit unavailable labels; old,
+closed or expired opportunities do not remove applications from history.
+
+Dates use Asia/Kabul. Pagination uses the URL query for reload/history and the
+same full-page Next convention as Opportunities, since there is no total count.
+Loading, empty pages, refresh, errors and Retry are separate states. Obsolete
+requests are cancelled and earlier-page/account data is hidden. The student
+route guard and navigation do not replace backend authorization. Other roles
+can still browse opportunities but see no Apply action or My applications link.
+
+This step does not add admin review controls, withdrawal, uploads, publishing
+forms, automatic internship creation, new dependencies or backend changes. No
+sample records or account changes are made by tests.
+
+To check locally with real existing accounts/data:
+
+1. Use a company representative's existing future-dated open opportunity; if none exists, create it using the backend in Postman.
+2. Sign in as a student, open `/opportunities`, expand a record and choose Apply.
+3. While submitting, verify repeated clicks are disabled. After success, open My applications and check the pending record.
+4. Reload Opportunities and apply for the same opportunity; verify the duplicate message and only one saved application.
+5. Refresh My applications, reload it and use pagination/Back/Forward when enough records exist.
+6. If an admin reviews the application through the existing backend, refresh the list to check the decision/rejection reason.
+7. Check both themes, long text and narrow screens. Test connection failures and expired sessions; uncertain submissions must not claim success.
+8. As each non-student role, check that Apply/My applications are absent and direct `/applications` navigation returns to the dashboard.
+
+Automated tests use mocked API responses and server-rendered markup for request
+payloads, response validation, status labels, errors, cancellation/timeouts,
+pagination, escaped text, action states and student-only navigation/guards.
+They do not execute browser clicks, request-lock behavior, history or a real
+authenticated database submission; those require an interactive browser check.

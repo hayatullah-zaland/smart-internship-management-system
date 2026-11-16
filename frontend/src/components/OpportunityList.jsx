@@ -5,7 +5,7 @@ const deadlineFormatter = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit', minute: '2-digit', hour12: true,
 })
 
-export default function OpportunityList({ opportunities, page, hasNextPage, loading, error, onRefresh, onPageChange }) {
+export default function OpportunityList({ opportunities, page, hasNextPage, loading, error, onRefresh, onPageChange, renderActions }) {
   return (
     <section className="border-b border-base-300 py-8" aria-labelledby="opportunities-heading" aria-busy={loading}>
       <div className="mb-5 flex items-center justify-between gap-3">
@@ -75,6 +75,7 @@ export default function OpportunityList({ opportunities, page, hasNextPage, load
                       </dl>
                     </div>
                   )}
+                  {renderActions?.(opportunity)}
                 </div>
               </details>
             </li>

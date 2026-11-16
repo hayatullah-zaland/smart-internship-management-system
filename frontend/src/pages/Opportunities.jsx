@@ -4,6 +4,7 @@ import { AuthContext } from '../context/AuthContext'
 import { fetchOpportunities, MAX_OPPORTUNITIES_PAGE } from '../context/opportunityApi'
 import DashboardLayout from '../components/DashboardLayout'
 import OpportunityList from '../components/OpportunityList'
+import OpportunityApply from '../components/OpportunityApply'
 
 export default function Opportunities() {
   const { user, token, signOut } = useContext(AuthContext)
@@ -53,7 +54,10 @@ export default function Opportunities() {
       </div>
       <OpportunityList opportunities={loading ? [] : result.opportunities} page={page}
         hasNextPage={!loading && result.hasNextPage} loading={loading} error={loading ? '' : result.error}
-        onRefresh={refreshOpportunities} onPageChange={changePage} />
+        onRefresh={refreshOpportunities} onPageChange={changePage}
+        renderActions={user.role === 'student' ? (opportunity) => (
+          <OpportunityApply key={`${user.id}:${token}:${opportunity._id}`} opportunityId={opportunity._id} opportunityTitle={opportunity.title} />
+        ) : undefined} />
     </DashboardLayout>
   )
 }

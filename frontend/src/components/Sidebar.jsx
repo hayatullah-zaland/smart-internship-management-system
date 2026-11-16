@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { BriefcaseBusiness, GraduationCap, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
+import { BriefcaseBusiness, ClipboardList, GraduationCap, LayoutDashboard, ShieldCheck, UserRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 
@@ -12,6 +12,7 @@ export default function Sidebar({ onNavigate }) {
     { to: '/dashboard#account', label: 'Account details', Icon: UserRound, current: pathname === '/dashboard' && hash === '#account' },
   ]
   if (user.role === 'student') {
+    links.push({ to: '/applications', label: 'My applications', Icon: ClipboardList, current: pathname === '/applications' })
     links.push({ to: '/profile', label: 'My profile', Icon: GraduationCap, current: pathname === '/profile' })
   }
   if (user.role === 'admin') {
