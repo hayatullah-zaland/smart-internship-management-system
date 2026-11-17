@@ -107,3 +107,40 @@ export async function submitDailyReport(token, report, signal) {
   }
   return saved
 }
+
+export function canReviewDailyReport(report, supervisorId) {
+  return isId(report?._id) && report.status === 'submitted' && isId(supervisorId)
+    && isId(report.internship?._id) && isId(report.internship.supervisor)
+    && report.internship.supervisor.toLowerCase() === supervisorId.toLowerCase()
+}
+
+export function validateDailyReportReview(values) {
+  const errors = {}
+  if (!['approved', 'changes_requested'].includes(values?.status)) errors.status = 'Choose a review decision.'
+  if (values?.status === 'changes_requested' && !isText(values.feedback, 1000, true)) {
+    errors.feedback = 'Enter feedback using 1 to 1000 characters.'
+  }
+  return errors
+}
+
+export async function reviewDailyReport(token, report, values, supervisorId, signal) {
+  if (!isReport(report) || !isPopulatedReport(report) || !canReviewDailyReport(report, supervisorId)) {
+    throw new Error('Only the assigned academic supervisor can review a submitted report. Refresh reports.')
+  }
+  const errors = validateDailyReportReview(values)
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
+  const changes = values.status === 'changes_requested'
+  const result = await apiRequest(`/api/v1/daily-reports/${report._id}/${changes ? 'request-changes' : 'approve'}`, token, {
+    method: 'PATCH', values: changes ? { feedback: values.feedback.trim() } : undefined, signal,
+  })
+  const saved = result.data?.report
+  if (!isReport(saved) || saved._id !== report._id || saved.status !== values.status || saved.internship !== report.internship._id
+    || !isId(saved.student) || (report.student !== null && saved.student !== report.student._id)
+    || saved.date !== report.date || saved.submittedAt !== report.submittedAt
+    || !isId(saved.reviewedBy) || saved.reviewedBy.toLowerCase() !== supervisorId.toLowerCase() || !isTime(saved.reviewedAt)
+    || ['hours', 'tasks', 'learning', 'challenges'].some((field) => saved[field] !== report[field])
+    || saved.feedback !== (changes ? values.feedback.trim() : report.feedback)) {
+    throw new Error('The review could not be confirmed. Refresh daily reports before trying again.')
+  }
+  return saved
+}

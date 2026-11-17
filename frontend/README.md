@@ -775,7 +775,8 @@ the report. **Submit report** is a separate explicit
 `POST /api/v1/daily-reports/:id/submit` with no content or identity fields. Only
 drafts and changes-requested reports from active internships have these actions.
 While editing, list edit/submit actions are disabled until saving or cancelling.
-Submitted and approved reports and inactive/deleted internships are read-only.
+Submitted and approved reports and inactive/deleted internships are read-only
+for students. Assigned supervisors can review submitted reports as described below.
 
 The page has loading, empty, error, refresh and URL pagination states. Expand a
 report to inspect its real content, student, placement dates and last review
@@ -805,7 +806,7 @@ To test locally with existing accounts/data:
 5. Try an invalid/future/out-of-placement date, blank required text, invalid hours and a duplicate date. No false success should appear; invalid form values send no write.
 6. Check empty history, later pages, refresh failures and a connection loss during saving. Refresh and inspect existing records before retrying uncertain writes.
 7. As the assigned supervisor, confirm submitted records are visible but drafts are not. As admin, confirm records are read-only. Representatives have no route/link.
-8. Using an existing changes-requested report, check the feedback, edit its content, save and submit again. Supervisor review controls are a separate next step.
+8. Using a changes-requested report, check the feedback, edit its content, save and submit again. See the supervisor review workflow below.
 9. Check keyboard navigation, disclosure controls, both themes, mobile layout, long content, expired sessions and navigation during a request.
 
 Automated tests cover mocked API payloads, validation, pagination, response
@@ -814,5 +815,60 @@ markup, action callbacks, role guards and navigation. They do not execute
 browser effects, real authenticated saves/submissions, concurrent writes or
 mobile visual checks. No accounts or database records are created by the tests.
 This step adds no dependencies and changes no backend endpoints. Supervisor
-approval/change-request controls, weekly reports and evaluations remain separate
-frontend steps.
+review controls are covered below; weekly reports and evaluations remain
+separate frontend steps.
+
+## Supervisor Daily Report Review
+
+An academic supervisor can expand a Submitted report in Daily reports, read its
+content, choose **Approve report** or **Request changes**, then explicitly
+**Save review**. There is no default decision and no automatic review. Request
+changes requires trimmed feedback of 1 to 1000 characters. Choosing approval
+does not send a hidden feedback draft.
+
+The page shows this form only when the populated internship's supervisor ID
+matches the signed-in academic supervisor. Other teachers, admins and students
+do not receive review controls. Draft, Approved and Changes requested records
+have no review form. The backend still performs the decisive authorization,
+assignment and current-status checks. A supervisor can review a Submitted report
+even if its internship is no longer active, matching the existing backend; the
+student still needs an active internship to edit/resubmit a returned report.
+Deleted internships have no review form; deleted student references remain
+readable without inventing a student name.
+
+Approval calls `PATCH /api/v1/daily-reports/:id/approve` without a body. Returning
+for changes calls `PATCH /api/v1/daily-reports/:id/request-changes` with only the
+trimmed `feedback`. Neither sends status, student content, reviewer identity or
+timestamps. The existing backend records status/reviewer/time together and
+rejects stale reviews with HTTP 409. The frontend confirms the matching report,
+student reference, internship, date, submission timestamp, unchanged content,
+chosen status and current reviewer's ID/time before showing success. Returned
+feedback must match the request. Approval retains previous feedback, if any,
+because the backend keeps that last review text after resubmission.
+
+Reviews reuse the existing page-level write lock, error notices, timeout and
+cancellation behavior. While saving, other review forms, refresh and pagination
+are disabled. Success refetches populated records and removes the resolved
+review form. Validation/permission failures preserve the decision/feedback.
+Missing records, conflicts and uncertain outcomes require a successful refresh
+before another review; no PATCH is automatically repeated. Refreshing or leaving
+clears unsaved review forms, and aborting cannot undo an accepted server write.
+HTTP 401 signs out. A new submission gets a fresh form, not an old decision.
+
+To check with existing accounts/data:
+
+1. As a student with an active internship, save a draft and submit it.
+2. Sign in as the assigned academic supervisor, open Daily reports and expand that Submitted report. Inspect its tasks and learning before choosing a decision.
+3. Choose Request changes, try blank/whitespace feedback, then enter a useful comment and Save review. Verify Changes requested and the last review feedback/time.
+4. As the student, refresh, read the feedback, edit the report, save changes and submit again. As supervisor, refresh and approve that new submission.
+5. Verify Approved is read-only, the old feedback remains labelled Last review feedback, and no reviewer name is invented from an ID.
+6. As admin/student/another supervisor, confirm review controls are absent or the report is not accessible. A direct unauthorized API request must still be rejected by the backend.
+7. Check double-clicks, a stale record in another supervisor session, failed connections and an expired session. Refresh before retrying any uncertain review.
+8. Check native disclosure/keyboard use, long feedback, both themes and mobile layouts.
+
+Focused automated checks use mocked API requests and SSR markup for payloads,
+decisions, bounded feedback, assigned-role visibility, response validation,
+review locks, errors and cancellation/timeouts. They do not execute browser
+effects/clicks, real authenticated reviews, overlapping review races or mobile
+visual checks. No records, accounts, roles, backend files or dependencies change
+in this frontend step. Weekly reports and evaluations are not added here.

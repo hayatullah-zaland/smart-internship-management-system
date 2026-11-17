@@ -1,10 +1,11 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
-import { fetchDailyReports, fetchReportInternships, MAX_DAILY_REPORT_PAGE, saveDailyReport, submitDailyReport, validateDailyReport } from '../context/dailyReportApi'
+import { canReviewDailyReport, fetchDailyReports, fetchReportInternships, MAX_DAILY_REPORT_PAGE, reviewDailyReport, saveDailyReport, submitDailyReport, validateDailyReport } from '../context/dailyReportApi'
 import DashboardLayout from '../components/DashboardLayout'
 import DailyReportForm from '../components/DailyReportForm'
 import DailyReportList from '../components/DailyReportList'
+import DailyReportReviewForm from '../components/DailyReportReviewForm'
 
 const emptyValues = { internshipId: '', date: '', hours: '', tasks: '', learning: '', challenges: '' }
 
@@ -84,17 +85,28 @@ export function DailyReportsWorkspace({ page, onPageChange }) {
     formHeadingRef.current?.focus()
   }
 
-  async function runWrite(action, report) {
-    if (!student || blocked || requestRef.current) return
+  async function runWrite(action, report, reviewValues) {
+    const reviewing = action === 'review'
+    if (blocked || requestRef.current || !['save', 'submit', 'review'].includes(action)
+      || (reviewing ? user.role !== 'academic_supervisor' || !canReviewDailyReport(report, user.id) : !student)) return
     const controller = new AbortController()
     requestRef.current = controller
     setWrite({ action, id: report?._id || null, message: '', error: false, needsRefresh: false })
     try {
-      if (action === 'save') await saveDailyReport(token, internship, values, editing, controller.signal)
-      else await submitDailyReport(token, report, controller.signal)
+      let message
+      if (reviewing) {
+        const saved = await reviewDailyReport(token, report, reviewValues, user.id, controller.signal)
+        message = saved.status === 'approved' ? 'Daily report approved.' : 'Daily report returned for changes.'
+      } else if (action === 'save') {
+        await saveDailyReport(token, internship, values, editing, controller.signal)
+        message = 'Daily report saved.'
+      } else {
+        await submitDailyReport(token, report, controller.signal)
+        message = 'Daily report submitted.'
+      }
       if (controller.signal.aborted) return
       if (action === 'save') clearEditor()
-      setWrite({ action: '', id: null, message: action === 'save' ? 'Daily report saved.' : 'Daily report submitted.', error: false, needsRefresh: false })
+      setWrite({ action: '', id: null, message, error: false, needsRefresh: false })
       setRefresh((count) => count + 1)
     } catch (error) {
       if (controller.signal.aborted) return
@@ -103,7 +115,7 @@ export function DailyReportsWorkspace({ page, onPageChange }) {
       const needsRefresh = uncertain || error.status === 404 || error.status === 409
       setWrite({ action: '', id: null, error: true, needsRefresh,
         message: uncertain ? 'The report change could not be confirmed. Refresh daily reports before trying again.'
-          : `${error.message || 'Unable to save this report.'}${needsRefresh ? ' Refresh daily reports before trying again.' : ''}` })
+          : `${error.message || 'Unable to update this report.'}${needsRefresh ? ' Refresh daily reports before trying again.' : ''}` })
     } finally {
       if (requestRef.current === controller) requestRef.current = null
     }
@@ -139,7 +151,11 @@ export function DailyReportsWorkspace({ page, onPageChange }) {
         error={loading ? '' : result.error} disabled={busy} actionsDisabled={Boolean(blocked)} student={student} editingId={editingId}
         submittingId={write.action === 'submit' ? write.id : null} onRefresh={() => { if (!busy) setRefresh((count) => count + 1) }}
         onPageChange={(next) => { if (!busy) onPageChange(next) }} onEdit={editReport}
-        onSubmit={(report) => { if (!editingId) runWrite('submit', report) }} />
+        onSubmit={(report) => { if (!editingId) runWrite('submit', report) }}
+        renderReview={user.role === 'academic_supervisor' ? (report) => canReviewDailyReport(report, user.id)
+          ? <DailyReportReviewForm key={`${report._id}:${report.submittedAt}`} report={report} disabled={Boolean(blocked)}
+            saving={write.action === 'review' && write.id === report._id} onReview={(item, decision) => runWrite('review', item, decision)} />
+          : null : undefined} />
     </DashboardLayout>
   )
 }

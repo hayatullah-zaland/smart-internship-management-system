@@ -4,7 +4,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 
 const timeFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kabul', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
 const statuses = { draft: ['Draft', 'badge-neutral'], submitted: ['Submitted', 'badge-info'], approved: ['Approved', 'badge-success'], changes_requested: ['Changes requested', 'badge-warning'] }
 
-export default function DailyReportList({ reports, page, hasNextPage, loading, error, disabled = false, actionsDisabled = false, student = false, submittingId, editingId, onRefresh, onPageChange, onEdit, onSubmit }) {
+export default function DailyReportList({ reports, page, hasNextPage, loading, error, disabled = false, actionsDisabled = false, student = false, submittingId, editingId, onRefresh, onPageChange, onEdit, onSubmit, renderReview }) {
   return (
     <section className="border-b border-base-300 py-8" aria-labelledby="reports-heading" aria-busy={loading || disabled}>
       <div className="mb-5 flex items-center justify-between gap-3">
@@ -55,6 +55,7 @@ export default function DailyReportList({ reports, page, hasNextPage, loading, e
                   {report.feedback && <div className="min-w-0 sm:col-span-2"><dt className="text-xs text-base-content/60">Last review feedback</dt>
                     <dd className="mt-1 break-words leading-6 whitespace-pre-wrap">{report.feedback}</dd></div>}
                 </dl>
+                {renderReview?.(report)}
               </div>
             </details>
             {editable && <div className="mt-5 flex flex-wrap gap-2 border-t border-base-300 pt-4">
