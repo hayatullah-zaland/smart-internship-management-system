@@ -17,6 +17,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   if (pathname === '/admin/applications') pageTitle = 'Applications'
   if (pathname === '/internships') pageTitle = 'Internships'
   if (pathname === '/daily-reports') pageTitle = 'Daily reports'
+  if (pathname === '/weekly-reports') pageTitle = 'Weekly reports'
   const role = user.role.replaceAll('_', ' ')
   const initial = Array.from(user.name.trim())[0]?.toUpperCase() || 'U'
 

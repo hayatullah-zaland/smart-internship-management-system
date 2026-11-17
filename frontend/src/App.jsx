@@ -12,6 +12,8 @@ import Internships from './pages/Internships'
 import { INTERNSHIP_ROLES } from './context/internshipApi'
 import DailyReports from './pages/DailyReports'
 import { DAILY_REPORT_ROLES } from './context/dailyReportApi'
+import WeeklyReports from './pages/WeeklyReports'
+import { WEEKLY_REPORT_ROLES } from './context/weeklyReportApi'
 
 function App() {
   return (
@@ -57,6 +59,11 @@ function App() {
       <Route path="/daily-reports" element={
         <ProtectedRoute allowedRoles={DAILY_REPORT_ROLES}>
           <DailyReports />
+        </ProtectedRoute>
+      } />
+      <Route path="/weekly-reports" element={
+        <ProtectedRoute allowedRoles={WEEKLY_REPORT_ROLES}>
+          <WeeklyReports />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/login" replace />} />

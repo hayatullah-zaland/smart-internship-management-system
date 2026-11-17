@@ -1,9 +1,10 @@
 import { useContext } from 'react'
-import { BriefcaseBusiness, ClipboardList, FileText, GraduationCap, LayoutDashboard, NotebookTabs, ShieldCheck, UserRound } from 'lucide-react'
+import { BookOpen, BriefcaseBusiness, ClipboardList, FileText, GraduationCap, LayoutDashboard, NotebookTabs, ShieldCheck, UserRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 import { INTERNSHIP_ROLES } from '../context/internshipApi'
 import { DAILY_REPORT_ROLES } from '../context/dailyReportApi'
+import { WEEKLY_REPORT_ROLES } from '../context/weeklyReportApi'
 
 export default function Sidebar({ onNavigate }) {
   const { user } = useContext(AuthContext)
@@ -26,6 +27,9 @@ export default function Sidebar({ onNavigate }) {
   }
   if (DAILY_REPORT_ROLES.includes(user.role)) {
     links.push({ to: '/daily-reports', label: 'Daily reports', Icon: FileText, current: pathname === '/daily-reports' })
+  }
+  if (WEEKLY_REPORT_ROLES.includes(user.role)) {
+    links.push({ to: '/weekly-reports', label: 'Weekly reports', Icon: BookOpen, current: pathname === '/weekly-reports' })
   }
 
   return (

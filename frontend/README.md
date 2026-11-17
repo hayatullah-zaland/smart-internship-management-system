@@ -815,8 +815,8 @@ markup, action callbacks, role guards and navigation. They do not execute
 browser effects, real authenticated saves/submissions, concurrent writes or
 mobile visual checks. No accounts or database records are created by the tests.
 This step adds no dependencies and changes no backend endpoints. Supervisor
-review controls are covered below; weekly reports and evaluations remain
-separate frontend steps.
+review controls and weekly reports are covered below; evaluations remain
+a separate frontend step.
 
 ## Supervisor Daily Report Review
 
@@ -871,4 +871,83 @@ decisions, bounded feedback, assigned-role visibility, response validation,
 review locks, errors and cancellation/timeouts. They do not execute browser
 effects/clicks, real authenticated reviews, overlapping review races or mobile
 visual checks. No records, accounts, roles, backend files or dependencies change
-in this frontend step. Weekly reports and evaluations are not added here.
+in this frontend step. Weekly reports are covered next; evaluations remain separate.
+
+## Weekly Reports
+
+Students and admins have a **Weekly reports** sidebar link and protected
+`/weekly-reports` route. This matches the existing backend: students read their
+own reports and admins read all reports, including drafts. Academic supervisors
+and company representatives cannot access weekly reports through this API.
+There is no weekly approval/change-request endpoint or form in this step.
+
+Students choose an active internship and enter a whole week number, a weekly
+summary, learning and optional challenges. The active-internship choices reuse
+the existing report helper, which reads every page of the scoped internship
+list. Choosing another internship clears the week choice but preserves text.
+The form shows the calculated week dates; it does not accept manually supplied
+week start/end dates, student identity, status or submission timestamps.
+
+Week 1 starts on the internship start date, not on Monday or another calendar
+week boundary. Each next week starts seven days later. The final week ends on
+the earlier of its seventh calendar day or the placement end date, inclusively;
+it may be a single day. Only weeks that have already started according to UTC
+are allowed, and the current unfinished week is valid. Week numbers range from
+1 to 10000 and must fall within the placement. An active future internship has
+no selectable started weeks yet, but its dropdown remains usable so another
+internship can be chosen. Week dates use UTC calendar days; submission times
+are displayed in Asia/Kabul.
+
+The workflow is deliberately split into explicit commands:
+
+1. **Save draft** calls `POST /api/v1/weekly-reports` with only `internshipId`, a numeric `weekNumber`, and trimmed `summary`, `learning`, `challenges`.
+2. **Edit report** fills the form from an existing draft. Internship and week stay fixed. **Save changes** calls `PATCH /api/v1/weekly-reports/:id` with only the three text fields.
+3. **Submit report** separately calls `POST /api/v1/weekly-reports/:id/submit` without a body. It never saves an unsaved editor automatically.
+
+Summary is required up to 5000 characters; learning is required up to 3000;
+optional challenges allow 2000. The backend's existing request-body size limit
+still applies. Only one report per internship/week is allowed; duplicates are
+HTTP 409 errors, not successful saves. Only drafts from active internships have
+edit/submit controls. Submitted reports and inactive/deleted internships are
+read-only, and admins never receive writing controls.
+
+The list shows real week/date ranges, student information, placement dates,
+content and submission time in native expandable details. Missing student or
+internship references remain explicit. Company/opportunity names are not
+invented from raw IDs that the report endpoint does not populate. Loading,
+empty, error, retry, refresh and URL pagination states match the daily reports
+page without inventing totals.
+
+Response validation confirms identity, week number, backend-derived dates,
+content and draft/submitted status before showing success. A confirmed save or
+submission refreshes the populated list. Saves/submissions share one synchronous
+request lock; competing writes, refresh and list navigation are disabled while
+pending. While editing, other list edit/submit actions remain disabled until
+saving or cancelling. Validation/permission errors preserve text; conflicts,
+missing records and uncertain network/server/timeout/malformed responses require
+a successful refresh before another write. Check the current records before
+retrying. No write is automatically repeated. HTTP 401 signs out.
+
+Leaving the page, changing account/token or changing the URL page aborts obsolete
+requests and clears the unsaved editor. Aborting cannot undo a server write.
+Drafts are not stored in the browser. A failure to load active choices does not
+hide otherwise valid report history.
+
+To test locally with existing accounts/data:
+
+1. As admin, ensure the student has an Active internship whose start date is on or before today (UTC).
+2. As that student, open Weekly reports, choose the placement and week 1 (or another already-started week), then fill summary/learning and Save draft.
+3. Expand the Draft record and verify its dates/content. Edit, change the summary and Save changes; verify week and internship stay unchanged.
+4. Submit the saved draft separately. Confirm Submitted, a Kabul submission time and no edit/submit controls.
+5. Check a future/out-of-placement/fractional week, blank required text, a duplicate week and a short final week. Invalid local input must send no write.
+6. Check pending locks, connection failures, refresh before uncertain retries, expired sessions and navigation during a request.
+7. As admin, inspect the read-only list. As supervisor/representative, confirm there is no link and a direct URL is guarded; the backend must also reject unauthorized requests.
+8. Check keyboard use, both themes, mobile layout, long text, empty/later pages and a future active placement with no started weeks.
+
+Focused automated checks use mocked API responses and SSR markup for week
+calculation (including leap years and partial weeks), payloads, contracts,
+errors, cancellation/timeouts, actions, disabled states, navigation and role
+guards. They do not execute browser effects/clicks, real authenticated writes,
+overlapping requests or mobile visual checks. No database records, accounts,
+roles, backend files or dependencies are changed by these checks. This step
+does not implement evaluations or account/company/opportunity management.
