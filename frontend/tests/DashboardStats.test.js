@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
-import { dashboardFields } from '../context/dashboardApi.js'
+import { dashboardFields } from '../src/context/dashboardApi.js'
 
 let server
 let DashboardStats

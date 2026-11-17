@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fetchOpportunities, MAX_OPPORTUNITIES_PAGE, OPPORTUNITIES_PAGE_SIZE } from './opportunityApi.js'
+import { fetchOpportunities, MAX_OPPORTUNITIES_PAGE, OPPORTUNITIES_PAGE_SIZE } from '../src/context/opportunityApi.js'
 
 const opportunity = {
   _id: '507f1f77bcf86cd799439011', title: 'Frontend Intern', description: 'Build university tools.\nWork with the team.',

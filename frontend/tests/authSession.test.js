@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { clearSessionToken, fetchSessionUser, isValidSessionUser, readSessionToken, saveSessionToken } from './authSession.js'
+import { clearSessionToken, fetchSessionUser, isValidSessionUser, readSessionToken, saveSessionToken } from '../src/context/authSession.js'
 
 const user = { id: 'student-id', name: 'Test Student', email: 'student@example.com', role: 'student', isActive: true }
 

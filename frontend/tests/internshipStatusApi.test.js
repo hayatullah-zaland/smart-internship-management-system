@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fetchInternships, updateInternshipStatus, validateInternshipStatus } from './internshipApi.js'
+import { fetchInternships, updateInternshipStatus, validateInternshipStatus } from '../src/context/internshipApi.js'
 
 const internship = {
   _id: '507f1f77bcf86cd799439017', application: '507f1f77bcf86cd799439013', createdBy: '507f1f77bcf86cd799439015',

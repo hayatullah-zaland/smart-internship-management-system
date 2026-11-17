@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createDepartment, fetchDepartments, validateDepartment } from './departmentApi.js'
+import { createDepartment, fetchDepartments, validateDepartment } from '../src/context/departmentApi.js'
 
 const department = { _id: '507f1f77bcf86cd799439011', name: 'Computer Science', code: 'CS' }
 

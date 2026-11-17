@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fetchStudentProfile, saveStudentProfile, validateStudentProfile } from './studentProfileApi.js'
-import { fetchDepartments } from './departmentApi.js'
+import { fetchStudentProfile, saveStudentProfile, validateStudentProfile } from '../src/context/studentProfileApi.js'
+import { fetchDepartments } from '../src/context/departmentApi.js'
 
 const department = { _id: '507f1f77bcf86cd799439011', name: 'Computer Science', code: 'CS' }
 const values = { studentNumber: 'STU-001', departmentId: department._id, semester: 3, phone: '+93 700 123 456' }

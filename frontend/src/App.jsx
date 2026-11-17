@@ -14,6 +14,8 @@ import DailyReports from './pages/DailyReports'
 import { DAILY_REPORT_ROLES } from './context/dailyReportApi'
 import WeeklyReports from './pages/WeeklyReports'
 import { WEEKLY_REPORT_ROLES } from './context/weeklyReportApi'
+import Evaluations from './pages/Evaluations'
+import { EVALUATION_ROLES } from './context/evaluationApi'
 
 function App() {
   return (
@@ -64,6 +66,11 @@ function App() {
       <Route path="/weekly-reports" element={
         <ProtectedRoute allowedRoles={WEEKLY_REPORT_ROLES}>
           <WeeklyReports />
+        </ProtectedRoute>
+      } />
+      <Route path="/evaluations" element={
+        <ProtectedRoute allowedRoles={EVALUATION_ROLES}>
+          <Evaluations />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/login" replace />} />

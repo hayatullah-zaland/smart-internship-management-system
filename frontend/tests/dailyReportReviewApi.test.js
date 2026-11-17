@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { canReviewDailyReport, reviewDailyReport, validateDailyReportReview } from './dailyReportApi.js'
+import { canReviewDailyReport, reviewDailyReport, validateDailyReportReview } from '../src/context/dailyReportApi.js'
 
 const supervisorId = '507f1f77bcf86cd799439016'
 const student = { _id: '507f1f77bcf86cd799439014', name: 'Student One', email: 'student@example.com' }

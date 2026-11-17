@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createApplication, fetchMyApplications, APPLICATIONS_PAGE_SIZE, MAX_APPLICATIONS_PAGE } from './applicationApi.js'
+import { createApplication, fetchMyApplications, APPLICATIONS_PAGE_SIZE, MAX_APPLICATIONS_PAGE } from '../src/context/applicationApi.js'
 
 const opportunity = {
   _id: '507f1f77bcf86cd799439011', title: 'Frontend Intern',

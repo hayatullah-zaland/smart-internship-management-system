@@ -40,6 +40,8 @@ export default function InternshipList({ internships, page, hasNextPage, loading
             <span className={`badge badge-soft shrink-0 ${statuses[internship.status].color}`}>{statuses[internship.status].label}</span>
           </div>
           <dl className="mt-5 grid min-w-0 gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+            <div className="min-w-0 sm:col-span-2"><dt className="text-xs text-base-content/60">Internship ID</dt>
+              <dd className="mt-1 break-all font-mono text-xs leading-6">{internship._id}</dd></div>
             {['student', 'supervisor'].map((name) => <div key={name} className="min-w-0">
               <dt className="text-xs text-base-content/60">{name === 'student' ? 'Student' : 'Academic supervisor'}</dt>
               <dd className="mt-1 break-words leading-6">

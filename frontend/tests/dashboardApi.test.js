@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { dashboardFields, fetchDashboardStats } from './dashboardApi.js'
+import { dashboardFields, fetchDashboardStats } from '../src/context/dashboardApi.js'
 
 const fixtures = {
   admin: { students: 12, companies: 3, departments: 2, pendingApplications: 0, activeInternships: 5, completedInternships: 4 },

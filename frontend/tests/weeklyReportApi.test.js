@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { canEditWeeklyReport, fetchWeeklyReports, getStartedWeekCount, getWeeklyReportDates, saveWeeklyReport, submitWeeklyReport, validateWeeklyReport } from './weeklyReportApi.js'
+import { canEditWeeklyReport, fetchWeeklyReports, getStartedWeekCount, getWeeklyReportDates, saveWeeklyReport, submitWeeklyReport, validateWeeklyReport } from '../src/context/weeklyReportApi.js'
 
 const student = { _id: '507f1f77bcf86cd799439014', name: 'Student One', email: 'student@example.com' }
 const internship = { _id: '507f1f77bcf86cd799439017', status: 'active', startDate: '2026-01-01T00:00:00.000Z', endDate: '2026-01-16T00:00:00.000Z' }

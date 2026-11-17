@@ -19,7 +19,14 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 - `npm run build`: create a production build.
 - `npm run preview`: preview the production build.
 - `npm run lint`: check the JavaScript code.
-- `npm test`: run session, dashboard, student-profile, department, opportunity API and rendering tests using Node's built-in test runner.
+- `npm test`: run all frontend tests in `tests/` using Node's built-in test runner.
+
+## Tests
+
+All frontend `*.test.js` files live in [tests/](./tests/), separate from the
+application code in `src/components`, `src/context` and `src/pages`.
+Run `npm test` from this frontend folder. API tests import helpers from
+`src/context`, and component tests load source modules through Vite.
 
 ## Main Files
 
@@ -815,8 +822,7 @@ markup, action callbacks, role guards and navigation. They do not execute
 browser effects, real authenticated saves/submissions, concurrent writes or
 mobile visual checks. No accounts or database records are created by the tests.
 This step adds no dependencies and changes no backend endpoints. Supervisor
-review controls and weekly reports are covered below; evaluations remain
-a separate frontend step.
+review controls, weekly reports and evaluations are covered below.
 
 ## Supervisor Daily Report Review
 
@@ -871,7 +877,7 @@ decisions, bounded feedback, assigned-role visibility, response validation,
 review locks, errors and cancellation/timeouts. They do not execute browser
 effects/clicks, real authenticated reviews, overlapping review races or mobile
 visual checks. No records, accounts, roles, backend files or dependencies change
-in this frontend step. Weekly reports are covered next; evaluations remain separate.
+in this frontend step. Weekly reports and evaluations are covered below.
 
 ## Weekly Reports
 
@@ -950,4 +956,87 @@ errors, cancellation/timeouts, actions, disabled states, navigation and role
 guards. They do not execute browser effects/clicks, real authenticated writes,
 overlapping requests or mobile visual checks. No database records, accounts,
 roles, backend files or dependencies are changed by these checks. This step
-does not implement evaluations or account/company/opportunity management.
+does not implement account/company/opportunity management. Evaluations are covered next.
+
+## Final Evaluations
+
+All four signed-in roles have an **Evaluations** sidebar link and protected
+`/evaluations` route. `GET /api/v1/evaluations?page=1&limit=10` uses the existing
+backend's privacy rules: admins see all assessments, students see their own,
+and academic supervisors/company representatives see only assessments they
+wrote. No student/evaluator filter is supplied by the frontend. Academic and
+company assessments stay separate; there is no invented average, weighting,
+pass mark or combined grade.
+
+Only assigned academic supervisors and company representatives receive a
+creation form. Final evaluation requires a Completed internship, an explicit
+numeric score from 0 to 100 (including zero and fractions), and trimmed comments
+of 1 to 2000 characters. Admins and students cannot enter scores. The existing
+backend records one assessment per internship/type, even if the evaluator is
+later replaced, and has no evaluation edit/delete endpoint. Recorded grades
+therefore have no edit/delete controls.
+
+The academic form scans every page of the existing supervisor-scoped internship
+list and offers only completed placements assigned to that supervisor with a
+known student. It does not claim these choices are unevaluated: the backend's
+unique index remains the authority for duplicates, including a previous
+supervisor's assessment that is private to that evaluator.
+
+Company representatives cannot list internships or companies through the
+current backend GET endpoints. Their form therefore accepts an **Internship
+ID** supplied by an admin, rather than calling a forbidden list or expanding
+permissions. Internship records now show their real ID alongside student and
+placement details so the admin can provide the correct one. The representative
+must verify the intended student/placement with the admin before recording a
+grade. No student name is invented in the company's confirmation screen. The
+backend checks that the placement is completed and belongs to a represented
+company; knowing an ID does not bypass this check.
+
+Creation has two explicit stages. **Review evaluation** validates the fields
+and shows the selected student (academic form), internship ID, exact score,
+assessment type and trimmed comments. This sends no write. **Back** returns to
+the preserved fields. Only **Record evaluation** calls
+`POST /api/v1/evaluations`, sending `internshipId`, numeric `score` and trimmed
+`comments`. Student, evaluator, type and timestamps are never sent; the backend
+derives them. A saved response must match the internship, current evaluator,
+type, score, comments and (for academic choices) student, with a valid creation
+timestamp, before success is shown.
+
+Successful creation refreshes populated records instead of merging raw POST
+references into the list. The read-only list shows real student/evaluator
+names, assessment type, score, comments, internship ID and creation time in
+Asia/Kabul. Missing people remain explicit. The backend does not populate the
+internship itself, so company/opportunity names are not invented from that ID.
+Loading, empty, error, retry, refresh and URL pagination states match the other
+modules without fabricated totals or example grades.
+
+One synchronous request lock protects the final POST; while pending, both
+confirmation commands, refresh and pagination are disabled. Validation and
+permission failures preserve input. Missing placements, duplicate/conflict
+errors and uncertain network/server/timeout/malformed responses require a
+successful refresh before another write; no POST is automatically repeated.
+HTTP 401 signs out. Refresh cancels the local confirmation stage but preserves
+the fields for a fresh review. Leaving the page, changing account/token or URL
+page clears the unsaved editor and aborts obsolete requests. Aborting cannot
+undo a server-side grade, and no grade draft is stored in browser storage.
+An academic choices failure does not hide otherwise valid assessment history.
+
+To test manually with existing accounts/data:
+
+1. As admin, move an assigned internship through Active to Completed. Check its student and supervisor and note the Internship ID.
+2. As its academic supervisor, open Evaluations, choose that completed placement and enter a score/comments. Try a blank score, scores outside 0-100 and blank comments; invalid fields must send no write.
+3. Review the evaluation, check the student/ID/score/comments, use Back to correct anything, then deliberately Record evaluation. Verify the refreshed Academic record, evaluator and Kabul creation time.
+4. As the student, inspect the own-record list. As admin, inspect all records and confirm neither account has a scoring form. Recorded records must have no edit/delete controls.
+5. As the company's assigned representative, obtain the intended completed Internship ID from admin, enter a separate company score/comments, review and explicitly record. Confirm the Company assessment is separate and no private list request is attempted.
+6. Check an unassigned/wrong-company or incomplete internship and a duplicate type. The backend must reject them; evaluator account changes must not reveal other evaluators' assessments.
+7. Test pending locks, double-clicks, a connection loss and an expired session. Refresh/check existing records before retrying an uncertain grade; automated tests do not create real grades.
+8. Check zero/fractional scores, long comments/IDs, keyboard use, confirmation focus, both themes, mobile layout, empty/later pages and navigation during a request.
+
+Focused automated tests use mocked requests and SSR markup for validation,
+pagination, completed choices, narrow POSTs, response metadata, errors,
+cancellation/timeouts, explicit confirmation callbacks, role visibility,
+read-only grades, escaping, navigation and the visible internship ID. They do
+not execute browser effects/clicks, real authenticated grading, overlapping
+requests or mobile visual checks. No backend permissions, endpoints, accounts,
+roles, dependencies or database records change in these checks. User/company
+management and opportunity publishing remain separate frontend steps.

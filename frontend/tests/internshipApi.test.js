@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createInternship, fetchInternships, fetchApprovedApplications, fetchAcademicSupervisors, validateInternshipAssignment, MAX_INTERNSHIPS_PAGE } from './internshipApi.js'
+import { createInternship, fetchInternships, fetchApprovedApplications, fetchAcademicSupervisors, validateInternshipAssignment, MAX_INTERNSHIPS_PAGE } from '../src/context/internshipApi.js'
 
 const student = { _id: '507f1f77bcf86cd799439014', name: 'Student One', email: 'student@example.com' }
 const supervisor = { _id: '507f1f77bcf86cd799439016', name: 'Supervisor One', email: 'supervisor@example.com' }
