@@ -15,6 +15,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   if (pathname === '/opportunities') pageTitle = 'Opportunities'
   if (pathname === '/applications') pageTitle = 'My applications'
   if (pathname === '/admin/applications') pageTitle = 'Applications'
+  if (pathname === '/admin/users') pageTitle = 'Users'
   if (pathname === '/internships') pageTitle = 'Internships'
   if (pathname === '/daily-reports') pageTitle = 'Daily reports'
   if (pathname === '/weekly-reports') pageTitle = 'Weekly reports'

@@ -37,6 +37,8 @@ Run `npm test` from this frontend folder. API tests import helpers from
 - [src/pages/Dashboard.jsx](./src/pages/Dashboard.jsx): loads role-specific counters and displays the signed-in dashboard and account details.
 - [src/pages/StudentProfile.jsx](./src/pages/StudentProfile.jsx): loads the student's academic profile and available departments.
 - [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
+- [src/pages/Users.jsx](./src/pages/Users.jsx): admin-only account creation, paginated users and access-status changes.
+- [src/context/userApi.js](./src/context/userApi.js): validated user-list, account-creation and status requests.
 - [src/pages/Opportunities.jsx](./src/pages/Opportunities.jsx): authenticated opportunity browsing with page URLs and refresh/retry.
 - [src/components/OpportunityList.jsx](./src/components/OpportunityList.jsx): opportunity summaries, expandable descriptions and previous/next controls.
 - [src/context/opportunityApi.js](./src/context/opportunityApi.js): paginated browsing requests and validation of opportunity/company data.
@@ -1038,5 +1040,55 @@ cancellation/timeouts, explicit confirmation callbacks, role visibility,
 read-only grades, escaping, navigation and the visible internship ID. They do
 not execute browser effects/clicks, real authenticated grading, overlapping
 requests or mobile visual checks. No backend permissions, endpoints, accounts,
-roles, dependencies or database records change in these checks. User/company
-management and opportunity publishing remain separate frontend steps.
+roles, dependencies or database records change in these checks. User management
+is covered below; company management and opportunity publishing remain separate frontend steps.
+
+## User Management
+
+Admins have a **Users** sidebar link at `/admin/users`. The route and all three
+backend endpoints are admin-only. Other roles cannot access this screen.
+
+- `GET /api/v1/users?page=1&limit=10`: shows real names, emails, roles, saved access status and join dates in Asia/Kabul. Pagination has no invented totals, search or role filters; the current backend does not provide those filters.
+- `POST /api/v1/auth/create-user`: creates an account with an explicitly selected Student, Academic supervisor, Company representative or Administrator role. It sends only trimmed name, lowercase email, unchanged password and role. Confirm password is checked locally and is not sent. The public signup page still creates students only.
+- `PATCH /api/v1/users/:id/status`: sends only `isActive: true` or `false`. Changing the access switch is a local draft. A named Activate/Deactivate confirmation must be submitted before a write; Cancel restores the saved value. Administrator status is protected both here and by the backend.
+
+Names must have 2-100 characters. Passwords must have at least 8 characters and
+no more than 72 UTF-8 bytes, with a matching confirmation. The backend remains
+the authority for valid emails and duplicate accounts. The form has no default
+role and warns when Administrator is selected. Creating an account does not
+sign in as the new person or replace the current admin session. Passwords are
+cleared after confirmed creation and are not stored in browser storage.
+
+An account's role, name or email cannot be edited from this screen, and there
+is no delete/reset-password command. Deactivated accounts cannot sign in or
+use authenticated endpoints. This does not delete their internship history.
+A company representative account must still be assigned to a company through
+the separate company workflow; choosing its role does not create a company.
+
+Only a matching server response confirms a new account or status change.
+Success refreshes the current list page; newly created users appear first on
+page 1 because the backend sorts newest first. A shared request lock disables
+creation, status changes, refresh and pagination during a write. Duplicate,
+missing-account and uncertain results require a successful refresh before
+another write. Check the existing email/account before retrying; writes are
+not automatically repeated. HTTP 401 signs out. Leaving the page or changing
+the account, token or URL page clears unsaved fields and cancels obsolete
+requests. Cancellation cannot undo a write already accepted by the server.
+
+Manual checks with existing accounts:
+
+1. Sign in as admin and open Users. Check pagination, saved statuses, join dates, empty/error states and refresh.
+2. Create a test academic supervisor with a unique email, matching password and explicit role. Verify the confirmed account, then sign in separately with its credentials. Repeat for another needed role deliberately; this work does not automatically create any accounts.
+3. Try invalid fields and a duplicate email. Invalid fields send no request; duplicates must not create a second account or report success.
+4. Toggle a non-admin account, check the named confirmation, cancel once, then explicitly deactivate it. Check its saved status and that it cannot sign in; reactivate deliberately afterward.
+5. Confirm admin accounts have no status switch. Check that students, supervisors and representatives cannot open `/admin/users` or call its backend endpoints.
+6. Check both themes, narrow screens, long names/emails, keyboard controls, pending-write locks, expired sessions and connection failures. Refresh/check account history before retrying an uncertain write.
+
+The tests in `tests/userApi.test.js` and `tests/Users.test.js` use mocked
+requests and SSR markup. They cover field/byte limits, role selection, narrow
+payloads, response validation, pagination, protected admins, explicit status
+confirmation, escaping, callbacks, navigation and role guards. They do not
+exercise browser effects/clicks, real account creation/deactivation, concurrent
+writes or mobile visual layout. No backend files, dependencies, database
+records, account roles or passwords are changed by these automated checks.
+Company management and opportunity publishing remain separate steps.

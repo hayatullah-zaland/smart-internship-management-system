@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { Award, BookOpen, BriefcaseBusiness, ClipboardList, FileText, GraduationCap, LayoutDashboard, NotebookTabs, ShieldCheck, UserRound } from 'lucide-react'
+import { Award, BookOpen, BriefcaseBusiness, ClipboardList, FileText, GraduationCap, LayoutDashboard, NotebookTabs, ShieldCheck, UserRound, UsersRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 import { INTERNSHIP_ROLES } from '../context/internshipApi'
@@ -20,6 +20,7 @@ export default function Sidebar({ onNavigate }) {
     links.push({ to: '/profile', label: 'My profile', Icon: GraduationCap, current: pathname === '/profile' })
   }
   if (user.role === 'admin') {
+    links.push({ to: '/admin/users', label: 'Users', Icon: UsersRound, current: pathname === '/admin/users' })
     links.push({ to: '/admin/applications', label: 'Applications', Icon: ClipboardList, current: pathname === '/admin/applications' })
     links.push({ to: '/departments', label: 'Departments', Icon: GraduationCap, current: pathname === '/departments' })
   }

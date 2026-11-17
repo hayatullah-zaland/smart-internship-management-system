@@ -16,6 +16,7 @@ import WeeklyReports from './pages/WeeklyReports'
 import { WEEKLY_REPORT_ROLES } from './context/weeklyReportApi'
 import Evaluations from './pages/Evaluations'
 import { EVALUATION_ROLES } from './context/evaluationApi'
+import Users from './pages/Users'
 
 function App() {
   return (
@@ -36,6 +37,11 @@ function App() {
       <Route path="/departments" element={
         <ProtectedRoute requiredRole="admin">
           <Departments />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/users" element={
+        <ProtectedRoute requiredRole="admin">
+          <Users />
         </ProtectedRoute>
       } />
       <Route path="/opportunities" element={
