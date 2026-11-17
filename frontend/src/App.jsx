@@ -8,6 +8,8 @@ import MyApplications from './pages/MyApplications'
 import Signup from './pages/Signup'
 import StudentProfile from './pages/StudentProfile'
 import AdminApplications from './pages/AdminApplications'
+import Internships from './pages/Internships'
+import { INTERNSHIP_ROLES } from './context/internshipApi'
 
 function App() {
   return (
@@ -43,6 +45,11 @@ function App() {
       <Route path="/admin/applications" element={
         <ProtectedRoute requiredRole="admin">
           <AdminApplications />
+        </ProtectedRoute>
+      } />
+      <Route path="/internships" element={
+        <ProtectedRoute allowedRoles={INTERNSHIP_ROLES}>
+          <Internships />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/login" replace />} />

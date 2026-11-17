@@ -210,6 +210,7 @@ between desktop and mobile navigation:
 - **Opportunities** opens `/opportunities` for every signed-in role, with the open-opportunity browsing list.
 - **My applications** opens `/applications` for students only, with their own submitted applications and current decisions.
 - **Applications** opens `/admin/applications` for admins only, with student applications and review forms.
+- **Internships** opens `/internships` for admins, students and academic supervisors. Admins can assign placements; the other two roles see their scoped records.
 
 The selected link has a visual indicator and `aria-current`. Only existing
 destinations are included; no unfinished module links or fake statistics were
@@ -599,3 +600,85 @@ cancellation/timeouts, transition controls and admin-only routes/navigation.
 They do not execute browser clicks, effects, simultaneous writes or real
 authenticated reviews. No backend edits, new dependencies or database seeds
 are included in this frontend step.
+
+## Internship Assignments
+
+Open **Internships** from the sidebar or `/internships`. The page is available
+to admins, students and academic supervisors, matching the backend GET access.
+Company representatives do not have this link and the route guard sends them
+to the dashboard. The existing guards for single-role pages are unchanged.
+
+The read-only list calls `GET /api/v1/internships?page=1&limit=10` with the current
+bearer token and no supplied identity filter. The backend returns all records
+for admins, the student's own records, or the academic supervisor's assigned
+records. It shows the opportunity, company/address, student, supervisor, start
+and end dates, and actual assigned/active/completed/cancelled status. Missing
+references have explicit unavailable labels. Dates are calendar dates displayed
+in UTC, matching the backend's interpretation of date-only input rather than
+shifting a placement's dates with the device timezone.
+
+Admins additionally have a four-field **Assign internship** form:
+
+- Approved application, loaded from the existing admin applications API with
+  `status=approved`, following all pages. Records missing a student, opportunity
+  or company are omitted from the choices.
+- Active academic supervisor, found by reading every page of the admin users
+  endpoint and filtering active `academic_supervisor` accounts locally. The
+  backend does not provide a role-filtered users endpoint.
+- Start date and end date, both valid `YYYY-MM-DD` calendar dates, with the end
+  strictly after the start. Past dates are not blocked by this backend contract.
+
+If an academic supervisor account does not exist, an admin can create one with
+the existing `POST /api/v1/auth/create-user` endpoint in Postman, using their
+admin bearer token and the usual name/email/password fields plus
+`"role": "academic_supervisor"`. This step does not add account-management UI or
+create/promote any accounts automatically. Approve a student application on
+the **Applications** page before assigning it.
+
+The choices refresh icon reloads both collections without discarding entered
+dates or selected IDs. Missing choices show empty/unavailable states; dates
+remain editable while no choices exist. Choices and saving wait for a
+successful refresh after a load error. Initial loading never invents options.
+
+`POST /api/v1/internships` sends only `applicationId`, `supervisorId`, `startDate`
+and `endDate`. The server controls student, company, opportunity, creator, seat
+and initial assigned status. Success requires a valid saved record matching the
+chosen application, supervisor and dates. After confirmation, the form clears
+and the list returns to page one and refreshes.
+
+Approved application choices are not a guarantee of available capacity or
+eligibility: already placed applications remain approved in the backend. The
+backend checks active users, duplicate placements, one ongoing internship per
+student, company existence and seat availability. Those conflict/validation
+messages are displayed and form values are retained. The frontend does not
+invent remaining seats or silently reassign an existing placement.
+
+Requests reuse bearer authentication, the 15-second per-request timeout and
+abort support. Submission has a synchronous duplicate-click lock and disables
+the form while pending. Network, timeout, malformed-response and server failures
+may occur after a save: they ask the user to refresh the internship list before
+retrying and never claim success or automatically retry POST. Aborting cannot
+undo an accepted write. HTTP 401 signs out; other failures remain errors.
+
+The list has URL pagination, empty/loading/error states, Retry and refresh.
+Students and supervisors do not fetch admin-only choices or see assignment
+controls. There is no status editing, report writing, account creation, backend
+change or new dependency in this step. Existing lifecycle statuses are displayed
+only; their management and reports remain separate steps.
+
+To check locally with existing accounts/data:
+
+1. Submit and approve a student application, and have an active academic supervisor account available.
+2. Sign in as admin, open Internships, select the application/supervisor, and enter start/end dates.
+3. Assign once, then check the success message and refreshed assigned record. Reload to check persistence.
+4. Try an equal/earlier end date or an impossible calendar date; validation must keep the entered values.
+5. Try a duplicate application, an already placed student or full opportunity; the backend error must not erase the form or claim success.
+6. Refresh choices after approving another application or creating a supervisor; existing draft dates should remain.
+7. Sign in as the student and assigned supervisor; each should see only their records and no assignment form.
+8. Test both themes, long names, mobile widths, pagination/history, connection failures, expired sessions and company-representative direct URL access.
+
+Automated checks use mocked API responses and SSR markup for contracts,
+calendar validation, complete choice pagination, filtering, response validation,
+request errors, cancellation/timeouts, list/form states and allowed-role guards.
+They do not execute browser effects/clicks or real authenticated assignments,
+capacity races or mobile visual checks. Tests do not seed database records.
