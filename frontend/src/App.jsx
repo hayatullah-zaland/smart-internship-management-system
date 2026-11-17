@@ -17,6 +17,7 @@ import { WEEKLY_REPORT_ROLES } from './context/weeklyReportApi'
 import Evaluations from './pages/Evaluations'
 import { EVALUATION_ROLES } from './context/evaluationApi'
 import Users from './pages/Users'
+import Companies from './pages/Companies'
 
 function App() {
   return (
@@ -42,6 +43,11 @@ function App() {
       <Route path="/admin/users" element={
         <ProtectedRoute requiredRole="admin">
           <Users />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/companies" element={
+        <ProtectedRoute requiredRole="admin">
+          <Companies />
         </ProtectedRoute>
       } />
       <Route path="/opportunities" element={

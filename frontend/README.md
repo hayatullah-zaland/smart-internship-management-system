@@ -39,6 +39,8 @@ Run `npm test` from this frontend folder. API tests import helpers from
 - [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
 - [src/pages/Users.jsx](./src/pages/Users.jsx): admin-only account creation, paginated users and access-status changes.
 - [src/context/userApi.js](./src/context/userApi.js): validated user-list, account-creation and status requests.
+- [src/pages/Companies.jsx](./src/pages/Companies.jsx): admin-only company registration, paginated records and representative assignment.
+- [src/context/companyApi.js](./src/context/companyApi.js): company requests and representative choices from the existing users API.
 - [src/pages/Opportunities.jsx](./src/pages/Opportunities.jsx): authenticated opportunity browsing with page URLs and refresh/retry.
 - [src/components/OpportunityList.jsx](./src/components/OpportunityList.jsx): opportunity summaries, expandable descriptions and previous/next controls.
 - [src/context/opportunityApi.js](./src/context/opportunityApi.js): paginated browsing requests and validation of opportunity/company data.
@@ -1091,4 +1093,65 @@ confirmation, escaping, callbacks, navigation and role guards. They do not
 exercise browser effects/clicks, real account creation/deactivation, concurrent
 writes or mobile visual layout. No backend files, dependencies, database
 records, account roles or passwords are changed by these automated checks.
-Company management and opportunity publishing remain separate steps.
+Company management is covered below; opportunity publishing remains separate.
+
+## Company Management
+
+Admins have a **Companies** sidebar link at `/admin/companies`. The frontend
+route and existing company endpoints remain admin-only, including company
+listing. No backend permissions or endpoints are changed.
+
+- `GET /api/v1/companies?page=1&limit=10`: paginated real names, addresses, contact emails, company IDs, registration dates in Asia/Kabul and saved representative links.
+- `POST /api/v1/companies`: sends only trimmed `name`, trimmed `address` and lowercase `contactEmail`. The server derives `createdBy`. A new company starts without a representative.
+- `PATCH /api/v1/companies/:id/representative`: sends only `representativeId`. Assignment replaces the company's existing link when one is present. It does not change the account's role or status.
+
+Company names must have 2-150 characters, addresses 1-300 characters and
+contact emails a valid format up to 254 characters. The backend is the final
+authority. Company names/emails are not unique in the current backend; this
+screen does not invent duplicate prevention. Check the records before retrying
+an uncertain creation. There are no company-edit, delete or unassign controls
+because the current backend does not provide those operations.
+
+The representative choices scan every page of the existing admin users list,
+not just its first page. Only active Company representative accounts are
+selectable. Inactive saved representatives remain identified with their real
+name/email and an inactive label. Missing accounts and failed lookups display
+an explicit unavailable state and keep the saved ID visible. No name is
+invented from an ID. A representative lookup failure does not hide company
+records or prevent creating an otherwise valid company.
+
+Each company starts with no draft representative selected. Choosing an option
+does not save; use **Assign representative** or **Replace representative**.
+Replacement shows a warning and an unchanged selection cannot be submitted.
+The backend rechecks that the account exists, is active and has the correct
+role. One representative may belong to multiple companies; the UI does not
+add a uniqueness rule. Create needed accounts under **Users**, then refresh
+Companies to load them.
+
+Only matching saved company/representative data confirms success. Success
+refreshes the current page and representative choices. Newest companies appear
+on page 1. A shared synchronous lock prevents creation and assignment from
+overlapping; refresh and pagination are disabled during a write. Errors retain
+inputs. Missing/conflicting/uncertain results require a successful company-list
+refresh before another write, with no automatic POST/PATCH retry. HTTP 401
+signs out. Page/account/token changes discard unsaved drafts and cancel obsolete
+requests; cancellation cannot undo a server-side write. Drafts are not stored
+in browser storage.
+
+Manual checks with existing admin credentials:
+
+1. Open Companies, register an intended test company and verify the exact contact data, actual ID, Kabul registration date and Not assigned state. Invalid fields must send no write.
+2. Under Users, create an active Company representative account if needed. Refresh Companies and select the correct real name/email, then explicitly Assign representative.
+3. Refresh and verify the saved name, email and representative ID. Choose the same person again; Save must remain disabled. Deliberately selecting another person shows the replacement warning and requires an explicit Replace representative command.
+4. Check inactive, missing and unavailable accounts, later user pages, no active representatives and lookup failures. Inactive accounts must not be selectable and company history must remain visible.
+5. Check pagination, refresh/retry, both themes, narrow screens, long contact text, keyboard labels, pending locks, expired sessions and connection loss. Refresh/check records before retrying an uncertain write.
+6. Confirm students, supervisors and company representatives cannot open the admin route or call company-management endpoints. Company representative signup alone does not grant access to an unassigned company's evaluations.
+
+`tests/companyApi.test.js` and `tests/Companies.test.js` cover mocked API
+requests and SSR markup/callbacks: field limits, safe payloads, response checks,
+pagination, all-page representative lookup, active-role restrictions, saved
+links, explicit replacement, escaping, disabled states, navigation and guards.
+They do not execute browser effects/clicks, real company creation/assignment,
+concurrent writes or mobile visual checks. The checks do not change accounts,
+database records, backend files or dependencies. Opportunity publishing remains
+a separate frontend step.
