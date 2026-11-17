@@ -5,11 +5,11 @@ import { createInternship, fetchAcademicSupervisors, fetchApprovedApplications, 
 
 const emptyValues = { applicationId: '', supervisorId: '', startDate: '', endDate: '' }
 
-export function InternshipAssignmentFields({ values, errors, applications, supervisors, loadingOptions, optionsError, saving, onChange, onSubmit }) {
+export function InternshipAssignmentFields({ values, errors, applications, supervisors, loadingOptions, optionsError, saving, disabled = false, onChange, onSubmit }) {
   const unavailable = loadingOptions || Boolean(optionsError)
   return (
     <form className="mt-5 max-w-3xl" onSubmit={onSubmit} noValidate aria-label="Assign internship" aria-busy={saving}>
-      <fieldset disabled={saving} className="grid min-w-0 gap-5 sm:grid-cols-2">
+      <fieldset disabled={saving || disabled} className="grid min-w-0 gap-5 sm:grid-cols-2">
         <legend className="sr-only">Internship assignment details</legend>
         <div className="min-w-0 sm:col-span-2">
           <label className="mb-2 block text-sm font-medium" htmlFor="assignment-application">Approved application</label>
@@ -47,7 +47,7 @@ export function InternshipAssignmentFields({ values, errors, applications, super
           {errors[name] && <p id={`assignment-${name}-error`} className="mt-2 text-xs text-error">{errors[name]}</p>}
         </div>)}
       </fieldset>
-      <button className="btn btn-primary mt-6 min-w-44" type="submit" disabled={saving || unavailable || !applications.length || !supervisors.length}>
+      <button className="btn btn-primary mt-6 min-w-44" type="submit" disabled={saving || disabled || unavailable || !applications.length || !supervisors.length}>
         {saving ? <><span className="loading loading-spinner loading-xs" aria-hidden="true" /> Assigning...</>
           : <><Plus size={17} aria-hidden="true" /> Assign internship</>}
       </button>
@@ -55,7 +55,7 @@ export function InternshipAssignmentFields({ values, errors, applications, super
   )
 }
 
-export default function InternshipAssignmentForm({ onAssigned }) {
+export default function InternshipAssignmentForm({ onAssigned, disabled = false, onSavingChange }) {
   const { user, token, signOut } = useContext(AuthContext)
   const [values, setValues] = useState(emptyValues)
   const [errors, setErrors] = useState({})
@@ -68,7 +68,12 @@ export default function InternshipAssignmentForm({ onAssigned }) {
   const optionsKey = `${token}:${refreshCount}`
   const loadingOptions = options.key !== optionsKey
 
-  useEffect(() => () => requestRef.current?.abort(), [token])
+  useEffect(() => () => {
+    if (requestRef.current) {
+      requestRef.current.abort()
+      onSavingChange?.(false)
+    }
+  }, [token, onSavingChange])
   useEffect(() => {
     if (user.role !== 'admin') return
     const controller = new AbortController()
@@ -101,7 +106,7 @@ export default function InternshipAssignmentForm({ onAssigned }) {
 
   async function submit(event) {
     event.preventDefault()
-    if (user.role !== 'admin' || requestRef.current || saving || loadingOptions || options.error) return
+    if (user.role !== 'admin' || disabled || requestRef.current || saving || loadingOptions || options.error) return
     const fieldErrors = validateInternshipAssignment(values)
     if (!options.applications.some((item) => item._id === values.applicationId)) fieldErrors.applicationId = 'Choose an available approved application.'
     if (!options.supervisors.some((item) => item._id === values.supervisorId)) fieldErrors.supervisorId = 'Choose an available academic supervisor.'
@@ -116,6 +121,7 @@ export default function InternshipAssignmentForm({ onAssigned }) {
     const controller = new AbortController()
     requestRef.current = controller
     setSaving(true)
+    onSavingChange?.(true)
     try {
       await createInternship(token, values, controller.signal)
       if (controller.signal.aborted) return
@@ -133,7 +139,10 @@ export default function InternshipAssignmentForm({ onAssigned }) {
         : error.message || 'Unable to assign this internship.')
     } finally {
       if (requestRef.current === controller) requestRef.current = null
-      if (!controller.signal.aborted) setSaving(false)
+      if (!controller.signal.aborted) {
+        setSaving(false)
+        onSavingChange?.(false)
+      }
     }
   }
 
@@ -143,14 +152,14 @@ export default function InternshipAssignmentForm({ onAssigned }) {
       <div className="flex items-center justify-between gap-3">
         <h2 id="assignment-heading" className="text-base font-semibold">Assign internship</h2>
         <button className="btn btn-ghost btn-square btn-sm" type="button" onClick={() => setRefreshCount((count) => count + 1)}
-          disabled={saving || loadingOptions} title="Refresh assignment choices" aria-label="Refresh assignment choices">
+          disabled={saving || disabled || loadingOptions} title="Refresh assignment choices" aria-label="Refresh assignment choices">
           <RotateCw size={17} aria-hidden="true" />
         </button>
       </div>
       {loadingOptions && <p role="status" className="mt-4 text-sm text-base-content/70">Loading assignment choices...</p>}
       {!loadingOptions && options.error && <p role="alert" className="mt-4 text-sm leading-6 text-error">{options.error}</p>}
       <InternshipAssignmentFields values={values} errors={errors} applications={options.applications} supervisors={options.supervisors}
-        loadingOptions={loadingOptions} optionsError={options.error} saving={saving} onChange={changeField} onSubmit={submit} />
+        loadingOptions={loadingOptions} optionsError={options.error} saving={saving} disabled={disabled} onChange={changeField} onSubmit={submit} />
       {message && <p role="alert" className="mt-4 break-words text-sm leading-6 text-error">{message}</p>}
       {assigned && <p role="status" className="mt-4 flex items-center gap-2 text-sm text-success">
         <CheckCircle2 size={17} aria-hidden="true" /> Internship assigned successfully.

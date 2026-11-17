@@ -608,7 +608,7 @@ to admins, students and academic supervisors, matching the backend GET access.
 Company representatives do not have this link and the route guard sends them
 to the dashboard. The existing guards for single-role pages are unchanged.
 
-The read-only list calls `GET /api/v1/internships?page=1&limit=10` with the current
+The list calls `GET /api/v1/internships?page=1&limit=10` with the current
 bearer token and no supplied identity filter. The backend returns all records
 for admins, the student's own records, or the academic supervisor's assigned
 records. It shows the opportunity, company/address, student, supervisor, start
@@ -662,9 +662,9 @@ undo an accepted write. HTTP 401 signs out; other failures remain errors.
 
 The list has URL pagination, empty/loading/error states, Retry and refresh.
 Students and supervisors do not fetch admin-only choices or see assignment
-controls. There is no status editing, report writing, account creation, backend
-change or new dependency in this step. Existing lifecycle statuses are displayed
-only; their management and reports remain separate steps.
+controls. Status changes are now available to admins as described below.
+Report writing and account-management UI remain separate steps; no backend
+change or new dependency was needed for these frontend features.
 
 To check locally with existing accounts/data:
 
@@ -682,3 +682,62 @@ calendar validation, complete choice pagination, filtering, response validation,
 request errors, cancellation/timeouts, list/form states and allowed-role guards.
 They do not execute browser effects/clicks or real authenticated assignments,
 capacity races or mobile visual checks. Tests do not seed database records.
+
+## Internship Status Updates
+
+Admins can expand **Update status** on an assigned or active record in
+**Internships**, select the next status and explicitly save:
+
+- Assigned can become Active or Cancelled.
+- Active can become Completed or Cancelled.
+- Completed and Cancelled are terminal and have no editing form.
+
+The form accepts an optional reason for activation/completion and requires a
+nonblank cancellation reason. Reasons are trimmed and limited to 1000
+characters. It calls the existing admin-only
+`PATCH /api/v1/internships/:id/status` with only `status` and a nonempty reason,
+never reviewer identity, timestamps, history entries or `isOngoing`. The backend
+checks the current status, handles concurrent changes, and saves status,
+ongoing state and history together. A completed/cancelled internship releases
+the student's ongoing-placement restriction, but the existing backend still
+counts historical opportunity slots when assigning capacity; the UI does not
+promise a returned seat.
+
+Success requires a matching record and status, correct ongoing flag and a valid
+last history entry matching the requested transition/reason. Then the list is
+refreshed. The raw PATCH references are not substituted into the populated list.
+Known validation/permission failures keep the form draft; missing-record,
+conflict and uncertain network/timeout/server or malformed-response failures
+require a successful refresh before another write. No PATCH is automatically
+retried. Cancelling a client request cannot undo a server change.
+
+Assignment and status forms share a pending-write lock through page state;
+while one is saving, other writes, list refresh and pagination are disabled.
+Changing page/account or leaving aborts obsolete status requests, hides older
+notices and clears interrupted saving state. HTTP 401 signs out; other errors
+do not. The shared 15-second timeout still applies.
+
+All permitted readers can open **Status history** when records contain history.
+It shows the real from/to statuses, timestamp in Asia/Kabul and any plain-text
+reason. No reviewer name is invented from the unpopulated `changedBy` ID.
+Records without history show none, and old responses without the optional
+history field remain readable. Invalid history produces a readable list error.
+Students and academic supervisors have no update form; they refresh their
+existing scoped list to see changes. Backend authorization remains decisive.
+
+To check locally with existing data:
+
+1. Sign in as admin, open an Assigned internship, choose Active and save; verify the refreshed badge and history entry.
+2. Open the Active record and choose Completed, or cancel another Assigned/Active record with a reason.
+3. Try a blank/whitespace cancellation reason or more than 1000 characters; validation must keep the draft and send no request.
+4. Confirm Completed/Cancelled records have no update form and the dropdown never permits skipped/reversed transitions.
+5. During saving, check that assignment, other status forms and list controls are disabled.
+6. Test a stale record in two admin sessions and a connection failure; refresh before retrying uncertain/conflicting changes.
+7. As the student and assigned supervisor, refresh Internships and inspect history/reasons without edit controls.
+8. Check both themes, keyboard disclosure/form use, mobile layouts, Back/Forward, long reasons and expired sessions.
+
+Tests use mocked API responses and SSR markup for transitions, bounded reasons,
+narrow PATCH payloads, response/history validation, errors, cancellation,
+timeouts, read-only history, action visibility and disabled states. They do not
+execute browser effects/clicks, overlapping writes or real authenticated status
+changes. No records are seeded or changed by the automated tests.

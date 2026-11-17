@@ -1,17 +1,18 @@
-import { BriefcaseBusiness, Building2, ChevronLeft, ChevronRight, RotateCw, TriangleAlert } from 'lucide-react'
+import { BriefcaseBusiness, Building2, ChevronDown, ChevronLeft, ChevronRight, RotateCw, TriangleAlert } from 'lucide-react'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'numeric', month: 'short', day: '2-digit' })
+const historyFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kabul', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })
 const statuses = {
   assigned: { label: 'Assigned', color: 'badge-info' }, active: { label: 'Active', color: 'badge-success' },
   completed: { label: 'Completed', color: 'badge-neutral' }, cancelled: { label: 'Cancelled', color: 'badge-error' },
 }
 
-export default function InternshipList({ internships, page, hasNextPage, loading, error, onRefresh, onPageChange }) {
+export default function InternshipList({ internships, page, hasNextPage, loading, error, onRefresh, onPageChange, renderActions, disabled = false }) {
   return (
-    <section className="border-b border-base-300 py-8" aria-labelledby="internships-heading" aria-busy={loading}>
+    <section className="border-b border-base-300 py-8" aria-labelledby="internships-heading" aria-busy={loading || disabled}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 id="internships-heading" className="text-base font-semibold">Internship records</h2>
-        <button className="btn btn-ghost btn-square btn-sm" type="button" disabled={loading} onClick={onRefresh}
+        <button className="btn btn-ghost btn-square btn-sm" type="button" disabled={loading || disabled} onClick={onRefresh}
           aria-label="Refresh internships" title="Refresh internships"><RotateCw size={17} aria-hidden="true" /></button>
       </div>
       {loading ? <p role="status" className="flex items-center gap-3 py-6 text-sm text-base-content/70">
@@ -55,14 +56,29 @@ export default function InternshipList({ internships, page, hasNextPage, loading
               <dd className="mt-1 break-words leading-6">{internship.company.address}</dd>
             </div>}
           </dl>
+          {internship.statusHistory?.length > 0 && <details className="group mt-5 border-t border-base-300 pt-4">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-sm text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+              Status history <ChevronDown size={16} className="shrink-0 transition-transform group-open:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+            </summary>
+            <ol className="mt-4 space-y-4">
+              {internship.statusHistory.map((change, index) => <li key={index} className="min-w-0 border-l-2 border-base-300 pl-4 text-sm">
+                <p className="font-medium">{statuses[change.from].label} to {statuses[change.to].label}</p>
+                <time className="mt-1 block text-xs leading-5 text-base-content/60" dateTime={change.changedAt}>
+                  {historyFormatter.format(new Date(change.changedAt))} Kabul
+                </time>
+                {change.reason && <p className="mt-2 break-words leading-6 whitespace-pre-wrap text-base-content/75">{change.reason}</p>}
+              </li>)}
+            </ol>
+          </details>}
+          {renderActions?.(internship)}
         </li>)}
       </ul>}
       <nav className="mt-6 flex items-center justify-center gap-2" aria-label="Internship pages">
         <button className="btn btn-ghost btn-square btn-sm" type="button" onClick={() => onPageChange(page - 1)}
-          disabled={loading || page <= 1} aria-label="Previous page" title="Previous page"><ChevronLeft size={18} aria-hidden="true" /></button>
+          disabled={loading || disabled || page <= 1} aria-label="Previous page" title="Previous page"><ChevronLeft size={18} aria-hidden="true" /></button>
         <span className="w-32 text-center text-sm tabular-nums" aria-current="page">Page {page}</span>
         <button className="btn btn-ghost btn-square btn-sm" type="button" onClick={() => onPageChange(page + 1)}
-          disabled={loading || Boolean(error) || !hasNextPage} aria-label="Next page" title="Next page"><ChevronRight size={18} aria-hidden="true" /></button>
+          disabled={loading || disabled || Boolean(error) || !hasNextPage} aria-label="Next page" title="Next page"><ChevronRight size={18} aria-hidden="true" /></button>
       </nav>
     </section>
   )
