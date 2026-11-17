@@ -10,6 +10,8 @@ import StudentProfile from './pages/StudentProfile'
 import AdminApplications from './pages/AdminApplications'
 import Internships from './pages/Internships'
 import { INTERNSHIP_ROLES } from './context/internshipApi'
+import DailyReports from './pages/DailyReports'
+import { DAILY_REPORT_ROLES } from './context/dailyReportApi'
 
 function App() {
   return (
@@ -50,6 +52,11 @@ function App() {
       <Route path="/internships" element={
         <ProtectedRoute allowedRoles={INTERNSHIP_ROLES}>
           <Internships />
+        </ProtectedRoute>
+      } />
+      <Route path="/daily-reports" element={
+        <ProtectedRoute allowedRoles={DAILY_REPORT_ROLES}>
+          <DailyReports />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/login" replace />} />

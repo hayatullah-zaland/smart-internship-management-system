@@ -741,3 +741,78 @@ narrow PATCH payloads, response/history validation, errors, cancellation,
 timeouts, read-only history, action visibility and disabled states. They do not
 execute browser effects/clicks, overlapping writes or real authenticated status
 changes. No records are seeded or changed by the automated tests.
+
+## Daily Reports
+
+The next frontend step is `/daily-reports`, linked from the sidebar for students,
+admins and academic supervisors. Company representatives cannot open this route.
+The existing backend remains responsible for authorization and ownership:
+
+- Students see their own reports, including drafts.
+- Admins can read all reports.
+- Academic supervisors can read submitted, approved and changes-requested reports
+  for their assigned internships. Student drafts are not included by the backend.
+
+Students choose one of their active internships and enter a report date, hours,
+tasks completed, learning and optional challenges. Active choices are loaded
+through every page of the existing scoped internship list, not an admin endpoint.
+**Save draft** calls `POST /api/v1/daily-reports` with only `internshipId`, `date`,
+numeric `hours` and the three trimmed text fields. Student identity, status and
+review metadata are never supplied by the form.
+
+Report dates use the backend's UTC calendar-day convention, must not be in the
+future and must fall within the internship's inclusive start/end dates. Hours
+must be between 0.25 and 24; fractional hours are allowed. Tasks are required up
+to 5000 characters, learning is required up to 3000, and optional challenges allow
+2000. The backend also enforces its existing request-body size limit. Only one
+report per internship/date is allowed; a duplicate is a real HTTP 409 error, not
+a successful save.
+
+**Edit report** fills the form with a saved draft or changes-requested report.
+Its date and internship stay fixed. **Save changes** sends only hours, tasks,
+learning and challenges to `PATCH /api/v1/daily-reports/:id`; it does not submit
+the report. **Submit report** is a separate explicit
+`POST /api/v1/daily-reports/:id/submit` with no content or identity fields. Only
+drafts and changes-requested reports from active internships have these actions.
+While editing, list edit/submit actions are disabled until saving or cancelling.
+Submitted and approved reports and inactive/deleted internships are read-only.
+
+The page has loading, empty, error, refresh and URL pagination states. Expand a
+report to inspect its real content, student, placement dates and last review
+feedback. The list API does not populate company/opportunity names inside a
+report's internship, so these names are not invented from raw IDs. Submission
+and last-review timestamps use Asia/Kabul; the report day and internship dates
+remain UTC calendar dates. Retained feedback is labelled as the last review,
+including after resubmission; it is not claimed to be a new review.
+
+Saves/submissions use a shared pending-request lock, disable other writes and
+list navigation, and refresh populated records only after validating the saved
+response. Validation/permission errors preserve form text. Missing records,
+conflicts and uncertain network/server/timeout/malformed-response outcomes block
+further writes until reports refresh successfully. Check the current saved report
+before retrying; requests are never automatically repeated. HTTP 401 signs out.
+Leaving the page, changing account/token or changing the URL page clears the
+unsaved editor and aborts obsolete requests; aborting cannot undo a server write.
+Drafts are not persisted in browser storage. A choices-loading failure does not
+hide otherwise valid report history.
+
+To test locally with existing accounts/data:
+
+1. As admin, assign an internship and mark it Active. Its dates must include a report day on or before today (UTC).
+2. Sign in as that student, open Daily reports, choose the active internship and fill the fields. Save draft and confirm a Draft record appears.
+3. Expand the record to inspect its text. Edit it, change the hours/tasks and save; verify the refreshed values and unchanged date.
+4. Submit the saved record separately. Confirm Submitted appears and edit/submit buttons disappear.
+5. Try an invalid/future/out-of-placement date, blank required text, invalid hours and a duplicate date. No false success should appear; invalid form values send no write.
+6. Check empty history, later pages, refresh failures and a connection loss during saving. Refresh and inspect existing records before retrying uncertain writes.
+7. As the assigned supervisor, confirm submitted records are visible but drafts are not. As admin, confirm records are read-only. Representatives have no route/link.
+8. Using an existing changes-requested report, check the feedback, edit its content, save and submit again. Supervisor review controls are a separate next step.
+9. Check keyboard navigation, disclosure controls, both themes, mobile layout, long content, expired sessions and navigation during a request.
+
+Automated tests cover mocked API payloads, validation, pagination, response
+contracts, duplicate/conflict errors, cancellation/timeouts, SSR form/list
+markup, action callbacks, role guards and navigation. They do not execute
+browser effects, real authenticated saves/submissions, concurrent writes or
+mobile visual checks. No accounts or database records are created by the tests.
+This step adds no dependencies and changes no backend endpoints. Supervisor
+approval/change-request controls, weekly reports and evaluations remain separate
+frontend steps.

@@ -1,8 +1,9 @@
 import { useContext } from 'react'
-import { BriefcaseBusiness, ClipboardList, GraduationCap, LayoutDashboard, NotebookTabs, ShieldCheck, UserRound } from 'lucide-react'
+import { BriefcaseBusiness, ClipboardList, FileText, GraduationCap, LayoutDashboard, NotebookTabs, ShieldCheck, UserRound } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 import { INTERNSHIP_ROLES } from '../context/internshipApi'
+import { DAILY_REPORT_ROLES } from '../context/dailyReportApi'
 
 export default function Sidebar({ onNavigate }) {
   const { user } = useContext(AuthContext)
@@ -22,6 +23,9 @@ export default function Sidebar({ onNavigate }) {
   }
   if (INTERNSHIP_ROLES.includes(user.role)) {
     links.push({ to: '/internships', label: 'Internships', Icon: NotebookTabs, current: pathname === '/internships' })
+  }
+  if (DAILY_REPORT_ROLES.includes(user.role)) {
+    links.push({ to: '/daily-reports', label: 'Daily reports', Icon: FileText, current: pathname === '/daily-reports' })
   }
 
   return (
