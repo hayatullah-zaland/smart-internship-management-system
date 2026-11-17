@@ -7,6 +7,7 @@ import Opportunities from './pages/Opportunities'
 import MyApplications from './pages/MyApplications'
 import Signup from './pages/Signup'
 import StudentProfile from './pages/StudentProfile'
+import AdminApplications from './pages/AdminApplications'
 
 function App() {
   return (
@@ -37,6 +38,11 @@ function App() {
       <Route path="/applications" element={
         <ProtectedRoute requiredRole="student">
           <MyApplications />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/applications" element={
+        <ProtectedRoute requiredRole="admin">
+          <AdminApplications />
         </ProtectedRoute>
       } />
       <Route path="*" element={<Navigate to="/login" replace />} />

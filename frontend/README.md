@@ -209,6 +209,7 @@ between desktop and mobile navigation:
 - **Departments** opens `/departments` for admins only, with the department list and creation form.
 - **Opportunities** opens `/opportunities` for every signed-in role, with the open-opportunity browsing list.
 - **My applications** opens `/applications` for students only, with their own submitted applications and current decisions.
+- **Applications** opens `/admin/applications` for admins only, with student applications and review forms.
 
 The selected link has a visual indicator and `aria-current`. Only existing
 destinations are included; no unfinished module links or fake statistics were
@@ -513,7 +514,7 @@ requests are cancelled and earlier-page/account data is hidden. The student
 route guard and navigation do not replace backend authorization. Other roles
 can still browse opportunities but see no Apply action or My applications link.
 
-This step does not add admin review controls, withdrawal, uploads, publishing
+The student page does not offer admin review controls, withdrawal, uploads, publishing
 forms, automatic internship creation, new dependencies or backend changes. No
 sample records or account changes are made by tests.
 
@@ -533,3 +534,68 @@ payloads, response validation, status labels, errors, cancellation/timeouts,
 pagination, escaped text, action states and student-only navigation/guards.
 They do not execute browser clicks, request-lock behavior, history or a real
 authenticated database submission; those require an interactive browser check.
+
+## Admin Application Review
+
+Sign in with an existing **admin** account and open **Applications** in the
+sidebar, or visit `/admin/applications`. Other roles do not see this link and
+the route guard returns them to their dashboard. Backend admin authorization
+still protects both endpoints; the frontend does not change account roles.
+
+The page calls `GET /api/v1/applications?page=1&limit=10`, optionally adding a
+`status` filter. All five backend statuses are available, with All statuses as
+the default. Changing the filter starts at page one. Filter and page selection
+are stored in the URL for reload and Back/Forward; invalid values fall back to
+All statuses/page one. Pagination follows the existing no-total-count contract.
+
+The shared application list now optionally displays student names and emails,
+without changing the student history view. Missing student, company or
+opportunity references are labelled unavailable rather than hiding the record.
+Dates use Asia/Kabul, and data/rejection reasons remain escaped plain text.
+
+Expand **Review application** on a pending or under-review record, choose a
+decision and explicitly select **Save decision**. Pending applications can move
+to Under review, Approved or Rejected. Under-review applications can only be
+approved or rejected. Approved, rejected and withdrawn records have no review
+form. The backend remains authoritative if another admin makes a decision.
+
+`PATCH /api/v1/applications/:id/decision` receives only `status`, plus a trimmed
+`rejectionReason` for rejection. A reason of 1-1000 characters is required.
+Student IDs, reviewer identity and review timestamps are never supplied by the
+form. The response must confirm the matching application, decision, reason,
+reviewer and review timestamp before success is shown. No internship is created
+by approving an application.
+
+One write can run at a time, protected by a synchronous request reference.
+Review fields, list refresh, pagination and the status filter are disabled while
+saving. A confirmed decision refreshes the list; filtered records may disappear
+if their new status no longer matches. Server validation/permission failures
+keep form values. Conflict (409), missing-record (404) and uncertain network,
+timeout/server or malformed-response failures require a successful list refresh
+before another review. PATCH is never retried automatically. Refresh errors
+remain errors, not empty success states.
+
+Both operations reuse the existing bearer helper, 15-second timeout and abort
+signals. Leaving the page or changing page/filter/account cancels obsolete
+requests, hides older results/notices and cannot undo a write already accepted
+by the server. HTTP 401 signs out; other failures remain readable errors.
+The student can see an updated decision by refreshing **My applications**;
+there are no push notifications or automatic polling.
+
+To check locally with real existing accounts/data:
+
+1. Submit an application from a student account, then sign in as admin and open Applications.
+2. Check the student's name/email, opportunity/company and pending status; try the status filter and pagination.
+3. Expand Review application, choose Under review and save; check the refreshed status.
+4. Approve the record, or reject another record with a reason; terminal records must have no review form.
+5. Try a blank/whitespace rejection reason and verify validation keeps the form. During saving, repeated submissions and list controls must be disabled.
+6. Sign in as the student and refresh My applications; check the decision and any rejection reason.
+7. Test a stale decision from two admin sessions and a connection failure; refresh the list before retrying uncertain/conflicting decisions.
+8. Check both themes, narrow screens, long text, expired sessions and direct URL access from every other role.
+
+Tests use mocked API responses and SSR markup for admin contracts, permitted
+payloads, response validation, filters, pagination, reason boundaries, errors,
+cancellation/timeouts, transition controls and admin-only routes/navigation.
+They do not execute browser clicks, effects, simultaneous writes or real
+authenticated reviews. No backend edits, new dependencies or database seeds
+are included in this frontend step.

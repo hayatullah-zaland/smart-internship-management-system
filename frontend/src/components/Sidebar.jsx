@@ -16,6 +16,7 @@ export default function Sidebar({ onNavigate }) {
     links.push({ to: '/profile', label: 'My profile', Icon: GraduationCap, current: pathname === '/profile' })
   }
   if (user.role === 'admin') {
+    links.push({ to: '/admin/applications', label: 'Applications', Icon: ClipboardList, current: pathname === '/admin/applications' })
     links.push({ to: '/departments', label: 'Departments', Icon: GraduationCap, current: pathname === '/departments' })
   }
 
