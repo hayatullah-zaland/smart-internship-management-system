@@ -34,10 +34,11 @@ export default function AuthProvider({ children }) {
   }, [token, user, restoreAttempt])
 
   async function signIn(email, password) {
+    const credentials = { email: email.trim().toLowerCase(), password }
     const response = await fetch('/api/v1/auth/signin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      body: JSON.stringify(credentials),
       signal: AbortSignal.timeout(15000),
     })
 
@@ -45,10 +46,11 @@ export default function AuthProvider({ children }) {
       throw new Error('Sign in is unavailable right now. Please try again.')
     }
     const result = await response.json()
-    if (!response.ok || !result.success) {
-      throw new Error(result.message || 'Unable to sign in. Please try again.')
+    if (!response.ok || result?.success !== true) {
+      throw new Error(result?.message || 'Unable to sign in. Please try again.')
     }
-    if (!isValidSessionUser(result.data?.user) || typeof result.data.token !== 'string' || !result.data.token.trim()) {
+    if (!isValidSessionUser(result.data?.user) || result.data.user.email !== credentials.email
+      || typeof result.data.token !== 'string' || !result.data.token.trim()) {
       throw new Error('Unable to sign in. Please try again.')
     }
 
@@ -60,18 +62,23 @@ export default function AuthProvider({ children }) {
   }
 
   async function signUp(name, email, password) {
+    const details = { name: name.trim(), email: email.trim().toLowerCase(), password }
     const response = await fetch('/api/v1/auth/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: name.trim(), email: email.trim().toLowerCase(), password }),
+      body: JSON.stringify(details),
       signal: AbortSignal.timeout(15000),
     })
     if (!response.headers.get('content-type')?.includes('application/json')) {
       throw new Error('Registration is unavailable right now. Please try again.')
     }
     const result = await response.json()
-    if (!response.ok || !result.success || !result.data?.user) {
-      throw new Error(result.message || 'Unable to create your account. Please try again.')
+    if (!response.ok || result?.success !== true) {
+      throw new Error(result?.message || 'Unable to create your account. Please try again.')
+    }
+    const account = result.data?.user
+    if (!isValidSessionUser(account) || account.role !== 'student' || account.name !== details.name || account.email !== details.email) {
+      throw new Error('Unable to confirm your account. Check your details before trying again.')
     }
     // Creating an account does not sign the student in automatically.
   }
