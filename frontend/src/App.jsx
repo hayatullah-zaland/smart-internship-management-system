@@ -18,6 +18,7 @@ import Evaluations from './pages/Evaluations'
 import { EVALUATION_ROLES } from './context/evaluationApi'
 import Users from './pages/Users'
 import Companies from './pages/Companies'
+import Students from './pages/Students'
 
 function App() {
   return (
@@ -43,6 +44,11 @@ function App() {
       <Route path="/admin/users" element={
         <ProtectedRoute requiredRole="admin">
           <Users />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/students" element={
+        <ProtectedRoute requiredRole="admin">
+          <Students />
         </ProtectedRoute>
       } />
       <Route path="/admin/companies" element={
