@@ -25,6 +25,11 @@
   color-scheme: dark;
 }
 
+.badge-soft.badge-neutral {
+  background-color: var(--color-base-300);
+  color: var(--color-base-content);
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;

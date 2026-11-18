@@ -50,12 +50,12 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
           <NavbarClock />
         </div>
         <div className="col-span-3 col-start-1 row-start-3 flex h-11 items-center justify-end gap-1 border-t border-base-300 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:h-20 sm:border-0 xl:col-start-3" role="group" aria-label="Workspace tools">
-          <div className="tooltip tooltip-bottom" data-tip="Messages (not available yet)" tabIndex={0} role="group" aria-label="Messages (not available yet)">
+          <div className="tooltip tooltip-bottom tooltip-end" data-tip="Messages (not available yet)" tabIndex={0} role="group" aria-label="Messages (not available yet)">
             <button className="btn btn-ghost btn-square" type="button" disabled aria-label="Messages (not available yet)">
               <MessageSquare size={20} aria-hidden="true" />
             </button>
           </div>
-          <div className="tooltip tooltip-bottom" data-tip="Notifications (not available yet)" tabIndex={0} role="group" aria-label="Notifications (not available yet)">
+          <div className="tooltip tooltip-bottom tooltip-end" data-tip="Notifications (not available yet)" tabIndex={0} role="group" aria-label="Notifications (not available yet)">
             <button className="btn btn-ghost btn-square" type="button" disabled aria-label="Notifications (not available yet)">
               <Bell size={20} aria-hidden="true" />
             </button>
@@ -74,7 +74,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
               <p className="truncate text-xs leading-5 text-base-content/70 capitalize" title={role}>{role}</p>
             </div>
           </div>
-          <div className="tooltip tooltip-bottom" data-tip="Sign out">
+          <div className="tooltip tooltip-bottom tooltip-end" data-tip="Sign out">
             <button className="btn btn-ghost btn-square" type="button" onClick={signOut}
               aria-label="Sign out" title="Sign out">
               <LogOut size={20} aria-hidden="true" />
