@@ -19,7 +19,8 @@ Open the local URL printed by Vite, usually http://localhost:5173.
 - `npm run build`: create a production build.
 - `npm run preview`: preview the production build.
 - `npm run lint`: check the JavaScript code.
-- `npm test`: run all frontend tests in `tests/` using Node's built-in test runner.
+- `npm test`: run unit, API and server-rendered component tests using Node's built-in test runner.
+- `npm run test:browser`: run isolated Edge browser tests with mocked API data.
 
 ## Tests
 
@@ -27,6 +28,9 @@ All frontend `*.test.js` files live in [tests/](./tests/), separate from the
 application code in `src/components`, `src/context` and `src/pages`.
 Run `npm test` from this frontend folder. API tests import helpers from
 `src/context`, and component tests load source modules through Vite.
+
+Browser tests use `tests/browser/*.pw.js` and run separately with Playwright.
+They are not application code and are not part of the ordinary Node test run.
 
 ## Main Files
 
@@ -39,9 +43,12 @@ Run `npm test` from this frontend folder. API tests import helpers from
 - [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
 - [src/pages/Users.jsx](./src/pages/Users.jsx): admin-only account creation, paginated users and access-status changes.
 - [src/context/userApi.js](./src/context/userApi.js): validated user-list, account-creation and status requests.
+- [src/pages/Students.jsx](./src/pages/Students.jsx): admin-only, read-only directory of saved academic profiles.
+- [src/components/StudentList.jsx](./src/components/StudentList.jsx): student identity, active status, department, semester, phone and pagination.
 - [src/pages/Companies.jsx](./src/pages/Companies.jsx): admin-only company registration, paginated records and representative assignment.
 - [src/context/companyApi.js](./src/context/companyApi.js): company requests and representative choices from the existing users API.
-- [src/pages/Opportunities.jsx](./src/pages/Opportunities.jsx): authenticated opportunity browsing with page URLs and refresh/retry.
+- [src/pages/Opportunities.jsx](./src/pages/Opportunities.jsx): authenticated browsing and representative-only publishing with page URLs and refresh/retry.
+- [src/components/OpportunityForm.jsx](./src/components/OpportunityForm.jsx): company ID, title, description, Kabul deadline and capacity fields.
 - [src/components/OpportunityList.jsx](./src/components/OpportunityList.jsx): opportunity summaries, expandable descriptions and previous/next controls.
 - [src/context/opportunityApi.js](./src/context/opportunityApi.js): paginated browsing requests and validation of opportunity/company data.
 - [src/components/DepartmentForm.jsx](./src/components/DepartmentForm.jsx): name/code form with validation and server-confirmed creation.
@@ -49,7 +56,7 @@ Run `npm test` from this frontend folder. API tests import helpers from
 - [src/context/departmentApi.js](./src/context/departmentApi.js): shared department listing and admin creation requests.
 - [src/context/apiRequest.js](./src/context/apiRequest.js): bearer/JSON request helper shared by profile, department and opportunity APIs.
 - [src/components/StudentProfileForm.jsx](./src/components/StudentProfileForm.jsx): academic form, field validation, save/reset and empty-department state.
-- [src/context/studentProfileApi.js](./src/context/studentProfileApi.js): authenticated profile requests, field validation and response normalization.
+- [src/context/studentProfileApi.js](./src/context/studentProfileApi.js): self-profile requests and validated admin profile-directory requests.
 - [src/components/DashboardStats.jsx](./src/components/DashboardStats.jsx): summary metrics, loading placeholders, refresh and error/retry states.
 - [src/context/dashboardApi.js](./src/context/dashboardApi.js): authenticated dashboard request and role/counter validation.
 - [src/components/Navbar.jsx](./src/components/Navbar.jsx): shared signed-in navigation with branding, account name/role, theme toggle and sign-out.
@@ -464,11 +471,9 @@ show an honest empty state, while connection/server failures offer **Retry**.
 Requests use the shared 15-second timeout, abort on page changes/unmount and
 clear the session on HTTP 401. Other errors are shown without signing out.
 
-This page does not publish opportunities. To see real
-data, use an existing open opportunity or the existing backend's
-`POST /api/v1/opportunities` as a company representative assigned to that company,
-with a future deadline. No sample records are inserted by the frontend or tests.
-Publishing forms remain a separate step. Students can now submit applications
+Company representatives now have a publishing form on this page, described in
+Opportunity Publishing below. Other roles retain the browsing list. No sample
+records are inserted by the frontend or tests. Students can submit applications
 from the opened opportunity details, as described below.
 
 To check locally:
@@ -1043,7 +1048,7 @@ read-only grades, escaping, navigation and the visible internship ID. They do
 not execute browser effects/clicks, real authenticated grading, overlapping
 requests or mobile visual checks. No backend permissions, endpoints, accounts,
 roles, dependencies or database records change in these checks. User management
-is covered below; company management and opportunity publishing remain separate frontend steps.
+is covered below, along with company management and opportunity publishing.
 
 ## User Management
 
@@ -1093,7 +1098,7 @@ confirmation, escaping, callbacks, navigation and role guards. They do not
 exercise browser effects/clicks, real account creation/deactivation, concurrent
 writes or mobile visual layout. No backend files, dependencies, database
 records, account roles or passwords are changed by these automated checks.
-Company management is covered below; opportunity publishing remains separate.
+Company management and opportunity publishing are covered below.
 
 ## Company Management
 
@@ -1153,5 +1158,219 @@ pagination, all-page representative lookup, active-role restrictions, saved
 links, explicit replacement, escaping, disabled states, navigation and guards.
 They do not execute browser effects/clicks, real company creation/assignment,
 concurrent writes or mobile visual checks. The checks do not change accounts,
-database records, backend files or dependencies. Opportunity publishing remains
-a separate frontend step.
+database records, backend files or dependencies. Opportunity publishing is
+covered next.
+
+## Opportunity Publishing
+
+Only **Company representative** accounts receive a **New opportunity** form
+above the existing `/opportunities` browsing list. Admins, students and academic
+supervisors cannot publish, matching the existing backend rule. Students retain
+their Apply actions and all four roles can still browse open opportunities.
+
+The form accepts Company ID, title, description, deadline and capacity. Titles
+must have 2-150 characters, descriptions 1-5000 characters and capacity must be
+a whole number from 1 to 1000. No fields are prefilled with sample data.
+
+Company listing is admin-only in the current backend. A representative obtains
+the real Company ID from admin under **Companies**, where the admin must first
+assign that representative account. The form does not request a forbidden
+company list or invent a company name from an ID. The backend verifies the
+current assignment on every POST; an unassigned/wrong-company ID is rejected.
+One representative may publish for more than one assigned company.
+
+**Deadline (Kabul, UTC+04:30)** uses a minute-precision date/time field. Its
+value is always interpreted as Kabul time, independent of the computer's
+timezone, and converted to a UTC ISO timestamp before submission. For example,
+`2027-01-31T23:59` becomes `2027-01-31T19:29:00.000Z`. Invalid calendar dates,
+blank deadlines and deadlines at or before the current instant are rejected.
+The backend checks the deadline again using its clock.
+
+Only explicit **Publish opportunity** submits `POST /api/v1/opportunities`
+with `companyId`, trimmed `title`, trimmed `description`, numeric `capacity`
+and the timezone-bearing `deadline`. ID, creator and open status are derived
+by the backend and never sent. The response must match company, current
+publisher, content, capacity, deadline and open status, with valid ID and
+creation timestamp, before success is shown. Confirmation shows the real
+opportunity ID, clears the form and refreshes the current list page. Newest
+records appear on page 1. The populated browsing list is reloaded rather than
+mixing the raw POST company reference into its company-name display.
+
+A synchronous request lock prevents repeated clicks and disables editing,
+refresh/retry and pagination during publication. Errors preserve the draft.
+Missing/conflicting/uncertain results require a successful list refresh before
+another publish attempt. Check the records first: this API has no uniqueness
+key, idempotency key or publisher-specific history and a refresh cannot prove
+that an uncertain request created nothing. Closed/expired records do not appear
+in this list. POST is never retried automatically. HTTP 401 signs out. Changing
+the account, token or URL page discards unsaved fields and cancels obsolete
+requests; cancellation cannot undo a server-side publication. Drafts are not
+stored in browser storage. No edit, close, archive or delete commands are added
+because the current backend has no corresponding endpoints.
+
+Manual verification:
+
+1. As admin, create the intended company and active Company representative account, assign the account and provide its Company ID.
+2. As that representative, open Opportunities, enter the correct ID, title, description, future Kabul deadline and capacity, then explicitly Publish opportunity.
+3. Verify the confirmed opportunity ID and refreshed first-page record. Check the company name/address and that the displayed Kabul deadline matches the entered time.
+4. As a student, find the opportunity, open its details and use the existing Apply workflow deliberately. Admins and supervisors must have no publishing form.
+5. Try blank/invalid fields, capacity outside 1-1000 or fractional capacity, a past deadline and an unassigned company ID. Invalid fields must send no POST; ownership failures must not report success.
+6. Check pending locks, expired sessions, navigation during publication, connection loss, both themes, mobile layout and keyboard errors. Refresh/check existing records before any retry of an uncertain result.
+
+`tests/opportunityPublishingApi.test.js` and
+`tests/OpportunityPublishing.test.js` cover mocked request contracts, timezone
+and calendar boundaries, validation, publisher-only visibility, response
+confirmation, student Apply preservation, busy controls, escaping, scope reset
+and cancellation/timeouts. Existing browsing/application tests are retained.
+They do not execute browser effects/clicks, real publication/application,
+concurrent writes or mobile visual checks. These checks change no backend
+permissions, dependencies, accounts, companies or database records.
+
+## Admin Student Directory
+
+Admins have a **Students** link at `/admin/students`. It calls the existing
+admin-only `GET /api/v1/students?page=1&limit=10` endpoint. Other roles are
+redirected out of the frontend route and are denied by the backend as well.
+
+The read-only directory shows actual saved student numbers, names, emails,
+account active status, department names/codes, semesters and phone numbers.
+It lists saved academic profiles, not every student account. A student must
+save **My profile** before appearing here; an account without a profile remains
+in **Users**. Self-entered profile details are not university-verified records.
+No edit, delete, role/status change, search or department-filter endpoints are
+invented for this screen.
+
+Missing populated accounts/departments have explicit unavailable labels while
+the academic record remains visible. Inactive accounts are shown as inactive,
+not hidden. The API helper validates academic fields, populated references and
+pagination, and retains only fields needed for the directory. It does not
+merge unrelated account-list rows into academic records or invent totals.
+
+Loading/errors hide previous page/account results. Refresh, retry and URL
+pagination follow the existing list pattern, including an honest empty page
+after a full last page. Page/account/token changes cancel obsolete requests.
+HTTP 401 signs out; forbidden/server/malformed responses remain errors rather
+than empty successful results. The helper uses the shared 15-second timeout.
+
+`tests/adminStudentApi.test.js` and `tests/Students.test.js` cover the directory
+contract, saved profile values, missing references, inactive accounts, empty
+and invalid pages, privacy, escaping, navigation, cancellation and role guards.
+The backend's `tests/student-directory.test.js` mocks database methods to check
+the actual middleware, admin permissions, populated fields and query pagination
+without connecting to MongoDB or changing an account/profile.
+
+## Final Verification
+
+The final checks include existing frontend and backend tests, the production
+build, read-only local HTTP checks and additional cross-module regression tests.
+
+Latest verification results:
+
+| Check | Result |
+| --- | --- |
+| Frontend `npm test` | 494 passed, no failures or skips |
+| Ordinary backend `npm test` | 16 passed, 1 opt-in MongoDB test skipped |
+| Frontend `npm run build` | Passed |
+| Local frontend route requests | 15 SPA entry URLs returned HTTP 200; this is not authenticated browser acceptance |
+| Unauthenticated protected API GETs | All 12 checked endpoints returned HTTP 401 through the Vite proxy |
+| Playwright `npm run test:browser` | Full 22-test suite passed; all API data mocked |
+| Responsive/theme browser checks | 162 role/page/viewport/theme checks passed; representative screenshots visually inspected |
+| Real MongoDB integration | Not run: opt-in test deliberately disabled |
+
+`tests/WorkspaceSmoke.test.js` checks every protected URL's role matrix, sidebar
+destinations/active links, and server-rendered pages in both theme contexts for
+one main heading, unique element IDs and no exposed token. It is structural
+SSR validation, not a rendered browser/mobile screenshot test.
+
+`tests/AuthResponses.test.js` exposed and now covers stricter Login/Signup
+response checks: `success` must be the boolean `true`; sign-in must return the
+requested email; public signup must confirm the requested name/email and an
+active Student account. Invalid responses cannot write a session token or
+claim successful registration. Valid signup still does not sign in, and valid
+sign-in still stores only the token.
+
+Run frontend checks from this folder:
+
+```powershell
+npm test
+npm run test:browser
+npm run build
+```
+
+Ordinary backend checks run from `backend` with `npm test`. Keep the opt-in
+`SIMS_INTEGRATION_TEST` flag disabled unless deliberately running the isolated
+real-MongoDB test documented in `backend/README.md`. Ordinary backend tests
+mock database calls. No production accounts, roles, companies, grades or
+reports need to be changed to run these automatic checks.
+
+### Isolated Browser Verification
+
+`playwright.config.js` and `tests/browser/` use the installed Microsoft Edge
+in a temporary, headless browser profile, not your personal browser session.
+Start Vite with `npm run dev` in one terminal, then run `npm run test:browser`
+in another. The configuration reuses `http://127.0.0.1:5173`, or starts its own
+temporary Vite server there if none is running. Port 5173 must serve this app.
+No Playwright browser download is needed when Edge is already installed.
+For an installed Chrome instead, use PowerShell:
+
+```powershell
+$env:PLAYWRIGHT_CHANNEL = 'chrome'
+npm run test:browser
+```
+
+The suite intercepts every `/api/**` request before navigation. Unmatched API
+requests fail locally instead of reaching the backend. Accounts, tokens,
+companies, reports and grades are fixtures kept only in the test process and
+isolated browser context. Test clicks do not change MongoDB or real accounts.
+
+Browser coverage includes:
+
+- All 27 permitted role/page combinations at 320, 768 and 1440 pixel widths, in both themes: 162 loaded page checks with populated records, long text and expanded details.
+- Login/signup layout, registration, sign-in, refresh persistence, logout and saved theme, plus failed/expired session restoration.
+- Mobile dialog keyboard focus, Escape, navigation, desktop resize and scroll-lock cleanup.
+- Every header tooltip hovered at each tested width; neutral draft/completed/company badges retain readable theme text in mobile and desktop layouts.
+- Student profile editing, forbidden-route redirects, empty/paginated lists, retryable failures and API 401 sign-out.
+- Admin department/user/company creation, explicit account-access confirmation, representative assignment, student directory, application review and internship assignment/history.
+- Opportunity publication validation, Kabul deadline conversion, pending locks, repeated submission prevention and student application/duplicate handling.
+- Daily and weekly draft creation/editing/submission, assigned-supervisor change requests/approval and read-only submitted reports.
+- Both evaluation types: review without writing, Back preserving a zero score, and explicit final confirmation before recording.
+
+Screenshots and failure diagnostics go under
+`node_modules/.cache/playwright-results/`, outside tracked source files.
+These tests reproduce frontend interactions against mocked API contracts;
+they do not prove real database integration, backend ownership decisions,
+concurrent-user behavior or production readiness.
+
+Browser testing exposed hidden navbar/theme tooltip content widening a
+320-pixel page. Their placement now keeps the narrow layout within the
+viewport without hiding page overflow or changing the date/time arrangement.
+Header tooltips are bottom-aligned to the button's end edge, keeping them
+away from the logo. A dedicated browser regression hovers every header
+tooltip in both themes at each tested width.
+Visual inspection also exposed low-contrast neutral soft badges in dark mode.
+Those badges now use the shared base background/content theme colors; a
+focused browser regression checks daily/weekly drafts, completed internships
+and company evaluations in both themes at mobile and desktop sizes.
+
+### Real-Backend Acceptance Checklist
+
+These real-backend checks remain pending until performed with deliberately
+chosen test accounts/records. Mocked browser tests and HTTP 200/401 checks do
+not replace them. Do not reuse real grades or uncertain writes as throwaway
+test data.
+
+- [ ] Sign up as a student, sign in, refresh the same browser tab, retry a failed session check and sign out. Verify both themes and all four account roles.
+- [ ] As admin, inspect Users, Departments and Companies. Deliberately test needed account/department/company creation, account access confirmation and representative assignment.
+- [ ] As a student, save/change My profile. As admin, verify its actual values under Students and check a student without a saved profile only under Users.
+- [ ] As an assigned company representative, publish an intended opportunity with the admin-provided Company ID and a future Kabul deadline. As a student, find it and apply once; verify duplicate prevention.
+- [ ] As admin, review the application, assign its internship/supervisor and move it through valid lifecycle states. Check scoped records and real history for the student and supervisor.
+- [ ] Create/edit/submit a daily draft as its student. Review it as the assigned supervisor, request changes once, correct and resubmit deliberately, then approve.
+- [ ] Create/edit/submit a weekly draft for a started internship week. Check placement-relative dates and read-only submitted/admin records.
+- [ ] For an intentionally completed test internship, review and explicitly record academic/company evaluations with their assigned evaluator accounts. Verify student privacy and that saved grades cannot be overwritten.
+- [ ] At narrow mobile, tablet and desktop widths, check long text, menus, the sidebar drawer, Kabul clock, tab order, visible focus, labels and both themes without overlap or horizontal page overflow.
+- [ ] Check expired sessions, forbidden URLs, empty/later pages, loading/errors, double clicks and navigation during requests. Check existing records before retrying any uncertain write.
+
+The agreed beginner feature implementation is present. Isolated browser
+verification and real-database acceptance are different checks; the latter
+remains unverified. This is not a claim of production readiness. Deferred features such as notifications,
+messaging, uploads, exports and password recovery remain outside this scope.
