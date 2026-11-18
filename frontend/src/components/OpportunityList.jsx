@@ -5,13 +5,13 @@ const deadlineFormatter = new Intl.DateTimeFormat('en-US', {
   hour: '2-digit', minute: '2-digit', hour12: true,
 })
 
-export default function OpportunityList({ opportunities, page, hasNextPage, loading, error, onRefresh, onPageChange, renderActions }) {
+export default function OpportunityList({ opportunities, page, hasNextPage, loading, error, disabled = false, onRefresh, onPageChange, renderActions }) {
   return (
-    <section className="border-b border-base-300 py-8" aria-labelledby="opportunities-heading" aria-busy={loading}>
+    <section className="border-b border-base-300 py-8" aria-labelledby="opportunities-heading" aria-busy={loading || disabled}>
       <div className="mb-5 flex items-center justify-between gap-3">
         <h2 id="opportunities-heading" className="min-w-0 text-base font-semibold">Open opportunities</h2>
         <div className="tooltip tooltip-left" data-tip="Refresh opportunities">
-          <button className="btn btn-ghost btn-square btn-sm" type="button" disabled={loading} onClick={onRefresh}
+          <button className="btn btn-ghost btn-square btn-sm" type="button" disabled={loading || disabled} onClick={onRefresh}
             aria-label="Refresh opportunities" title="Refresh opportunities">
             <RotateCw size={17} aria-hidden="true" />
           </button>
@@ -27,7 +27,7 @@ export default function OpportunityList({ opportunities, page, hasNextPage, load
           <div className="min-w-0">
             <p className="text-sm font-semibold">Unable to load opportunities</p>
             <p className="mt-1 break-words text-sm leading-6 text-base-content/75">{error}</p>
-            <button className="btn btn-outline btn-sm mt-3" type="button" onClick={onRefresh}>
+            <button className="btn btn-outline btn-sm mt-3" type="button" disabled={disabled} onClick={onRefresh}>
               <RotateCw size={15} aria-hidden="true" /> Retry
             </button>
           </div>
@@ -84,12 +84,12 @@ export default function OpportunityList({ opportunities, page, hasNextPage, load
       )}
       <nav className="mt-6 flex items-center justify-center gap-2" aria-label="Opportunity pages">
         <button className="btn btn-ghost btn-square btn-sm" type="button" onClick={() => onPageChange(page - 1)}
-          disabled={loading || page <= 1} aria-label="Previous page" title="Previous page">
+          disabled={loading || disabled || page <= 1} aria-label="Previous page" title="Previous page">
           <ChevronLeft size={18} aria-hidden="true" />
         </button>
         <span className="w-32 text-center text-sm tabular-nums" aria-current="page">Page {page}</span>
         <button className="btn btn-ghost btn-square btn-sm" type="button" onClick={() => onPageChange(page + 1)}
-          disabled={loading || Boolean(error) || !hasNextPage} aria-label="Next page" title="Next page">
+          disabled={loading || disabled || Boolean(error) || !hasNextPage} aria-label="Next page" title="Next page">
           <ChevronRight size={18} aria-hidden="true" />
         </button>
       </nav>
