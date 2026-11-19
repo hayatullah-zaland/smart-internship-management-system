@@ -1,3 +1,5 @@
+import { isProfileImage } from './profileImage.js'
+
 const sessionKey = 'sims-access-token'
 const roles = ['student', 'admin', 'academic_supervisor', 'company_representative']
 
@@ -30,7 +32,8 @@ export function isValidSessionUser(user) {
   return Boolean(user && typeof user.id === 'string' && user.id.trim()
     && typeof user.name === 'string' && user.name.trim()
     && typeof user.email === 'string' && user.email.trim()
-    && roles.includes(user.role) && user.isActive === true)
+    && roles.includes(user.role) && user.isActive === true
+    && (user.profileImage === undefined || isProfileImage(user.profileImage)))
 }
 
 export async function fetchSessionUser(token, signal) {

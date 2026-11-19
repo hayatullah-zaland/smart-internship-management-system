@@ -123,7 +123,7 @@ test('other roles do not see the student profile link', () => {
 })
 
 test('dashboard and account links keep one correct active state after adding profile', () => {
-  for (const [path, href] of [['/dashboard', '/dashboard'], ['/dashboard#account', '/dashboard#account']]) {
+  for (const [path, href] of [['/dashboard', '/dashboard'], ['/account', '/account']]) {
     const html = render(h(Sidebar), { path })
     assert.equal((html.match(/aria-current="location"/g) || []).length, 1)
     const activeLink = html.match(/<a\b[^>]*aria-current="location"[^>]*>/)[0]

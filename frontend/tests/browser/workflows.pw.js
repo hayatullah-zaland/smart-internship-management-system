@@ -72,7 +72,7 @@ test('signup, login, refresh, theme persistence and logout', async ({ context, p
   await page.getByLabel('Email address', { exact: true }).fill('new-student@example.test')
   await page.getByLabel('Password', { exact: true }).fill('Test-password-123')
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-  await expect(page).toHaveURL(/\/dashboard$/)
+  await expect(page).toHaveURL(/\/account$/)
   await ready(page)
   await page.getByRole('button', { name: 'Dark mode', exact: true }).click()
   await page.reload()

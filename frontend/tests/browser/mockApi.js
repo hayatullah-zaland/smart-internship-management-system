@@ -6,10 +6,10 @@ const day = (offset = 0) => new Date(Date.now() + offset * 86400000).toISOString
 const stamp = (offset = 0) => `${day(offset)}T00:00:00.000Z`
 export const roles = ['admin', 'student', 'academic_supervisor', 'company_representative']
 export const routes = {
-  admin: ['/dashboard', '/departments', '/admin/users', '/admin/students', '/admin/companies', '/opportunities', '/admin/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
-  student: ['/dashboard', '/profile', '/opportunities', '/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
-  academic_supervisor: ['/dashboard', '/opportunities', '/internships', '/daily-reports', '/evaluations'],
-  company_representative: ['/dashboard', '/opportunities', '/evaluations'],
+  admin: ['/dashboard', '/account', '/departments', '/admin/users', '/admin/students', '/admin/companies', '/opportunities', '/admin/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
+  student: ['/dashboard', '/account', '/profile', '/opportunities', '/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
+  academic_supervisor: ['/dashboard', '/account', '/opportunities', '/internships', '/daily-reports', '/evaluations'],
+  company_representative: ['/dashboard', '/account', '/opportunities', '/evaluations'],
 }
 
 export function fixtures(role = 'student') {
@@ -22,7 +22,7 @@ export function fixtures(role = 'student') {
   const daily = { _id: id(60), student: id(2), internship: id(50), date: stamp(-1), hours: 4, tasks: 'Test the application', learning: 'Write clear reports', challenges: '', status: 'draft', feedback: '', submittedAt: null, reviewedBy: null, reviewedAt: null }
   const weekly = { _id: id(70), student: id(2), internship: id(50), weekNumber: 1, ...getWeeklyReportDates(internships[0], 1), summary: 'Completed the first internship week', learning: 'Teamwork and testing', challenges: '', status: 'draft', submittedAt: null }
   return {
-    role, users, departments: [department], companies: [company], opportunities, applications, internships,
+    role, signedInUserId: users.find((user) => user.role === role)._id, users, departments: [department], companies: [company], opportunities, applications, internships,
     profiles: [{ _id: id(90), user: id(2), department: id(10), studentNumber: 'CS-101', semester: 4, phone: '+93700123456' }],
     dailyReports: [daily], weeklyReports: [weekly], evaluations: [], calls: [], unexpected: [], failures: [],
     today: day(), nextId: 100,
@@ -40,8 +40,8 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
   }, { signedIn, theme })
 
   const user = (value) => state.users.find((item) => item._id === value) || null
-  const account = (value) => value && { id: value._id, name: value.name, email: value.email, role: value.role, isActive: value.isActive }
-  const current = () => state.users.find((item) => item.role === state.role)
+  const account = (value) => value && { id: value._id, name: value.name, email: value.email, role: value.role, isActive: value.isActive, profileImage: value.profileImage || '' }
+  const current = () => user(state.signedInUserId)
   const company = (value) => state.companies.find((item) => item._id === value) || null
   const opportunity = (value) => {
     const record = state.opportunities.find((item) => item._id === value)
@@ -73,6 +73,11 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
     const nextId = () => id(state.nextId++)
 
     if (path === '/auth/me' && method === 'GET') return reply({ user: account(current()) })
+    if (path === '/auth/me' && method === 'PATCH') {
+      const found = current()
+      Object.assign(found, { name: values.name, email: values.email, profileImage: values.profileImage })
+      return reply({ user: account(found) })
+    }
     if (path === '/auth/signup' && method === 'POST') {
       const created = { _id: nextId(), name: values.name, email: values.email, role: 'student', isActive: true, createdAt: stamp() }
       state.users = state.users.filter((item) => item.role !== 'student').concat(created)
@@ -82,11 +87,16 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
       const found = state.users.find((item) => item.email === values.email)
       if (!found) return reply('Invalid credentials.', 401)
       state.role = found.role
+      state.signedInUserId = found._id
       return reply({ user: account(found), token: 'browser-test-token' })
     }
-    if (path === '/dashboard/stats' && method === 'GET') return reply({ role: state.role, stats: Object.fromEntries(dashboardFields[state.role].map((field) => [field, 2])) })
+    if (path === '/dashboard/stats' && method === 'GET') {
+      if (state.holdDashboard) await state.holdDashboard
+      return reply({ role: state.role, stats: state.dashboardStats || Object.fromEntries(dashboardFields[state.role].map((field) => [field, 2])) })
+    }
     if (path === '/users' && method === 'GET') return list('users', state.users)
     if (path === '/auth/create-user' && method === 'POST') {
+      if (state.users.some((item) => item.email === values.email)) return reply('An account with this email already exists.', 409)
       const created = { _id: nextId(), name: values.name, email: values.email, role: values.role, isActive: true, createdAt: stamp() }
       state.users.unshift(created)
       return reply({ user: account(created) }, 201)
@@ -95,6 +105,27 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
       const found = user(path.split('/')[2])
       Object.assign(found, values)
       return reply({ user: account(found) })
+    }
+    if (/^\/users\/[^/]+$/.test(path) && ['PATCH', 'DELETE'].includes(method)) {
+      if (state.role !== 'admin') return reply('Only administrators can access this resource.', 403)
+      const found = user(path.split('/')[2])
+      if (!found) return reply('User not found.', 404)
+      if (found.role === 'admin') return reply('Administrator accounts are protected.', 403)
+      if (method === 'PATCH') {
+        if (state.users.some((item) => item._id !== found._id && item.email === values.email)) return reply('An account with this email already exists.', 409)
+        Object.assign(found, { name: values.name, email: values.email })
+        return reply({ user: account(found) })
+      }
+      if (found.isActive) return reply('Deactivate this account before deleting it.', 409)
+      const references = [[state.profiles, ['user']], [state.applications, ['student', 'reviewedBy']],
+        [state.internships, ['student', 'supervisor', 'createdBy']], [state.companies, ['representative', 'createdBy']],
+        [state.opportunities, ['createdBy']], [state.dailyReports, ['student', 'reviewedBy']],
+        [state.weeklyReports, ['student']], [state.evaluations, ['student', 'evaluator']]]
+      if (references.some(([records, fields]) => records.some((record) => fields.some((field) => record[field] === found._id)))) {
+        return reply('This user has project records and cannot be deleted. Keep the account inactive to preserve its history.', 409)
+      }
+      state.users = state.users.filter((item) => item._id !== found._id)
+      return reply({ userId: found._id })
     }
     if (path === '/departments' && method === 'GET') return list('departments', state.departments)
     if (path === '/departments' && method === 'POST') {

@@ -33,7 +33,7 @@ export default function Login() {
   }
 
   if (user && token) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/account" replace />
   }
 
   return (

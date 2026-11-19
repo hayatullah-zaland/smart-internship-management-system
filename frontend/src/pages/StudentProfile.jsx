@@ -5,6 +5,8 @@ import { fetchStudentProfile } from '../context/studentProfileApi'
 import { fetchDepartments } from '../context/departmentApi'
 import DashboardLayout from '../components/DashboardLayout'
 import StudentProfileForm from '../components/StudentProfileForm'
+import ProfileHeader from '../components/ProfileHeader'
+import ProfileIdentity from '../components/ProfileIdentity'
 
 export default function StudentProfile() {
   const { user, token, signOut } = useContext(AuthContext)
@@ -42,30 +44,30 @@ export default function StudentProfile() {
 
   return (
     <DashboardLayout>
-      <div className="border-b border-base-300 pb-7">
-        <p className="mb-2 text-sm font-medium text-primary">Student</p>
-        <h1 className="text-2xl font-semibold">My profile</h1>
-        <p className="mt-3 break-words text-sm font-medium">{user.name}</p>
-        <p className="mt-1 break-all text-sm text-base-content/70">{user.email}</p>
-      </div>
-      {loading ? (
-        <p role="status" className="flex items-center gap-3 py-10 text-sm text-base-content/70">
-          <span className="loading loading-spinner loading-sm" aria-hidden="true" /> Loading your profile...
-        </p>
-      ) : result.error ? (
-        <div role="alert" className="mt-8 flex items-start gap-3 rounded-md border border-error/40 bg-error/10 p-4">
-          <TriangleAlert size={20} className="mt-0.5 shrink-0 text-error" aria-hidden="true" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold">Unable to load profile</p>
-            <p className="mt-1 break-words text-sm leading-6 text-base-content/75">{result.error}</p>
-            <button className="btn btn-outline btn-sm mt-3" type="button" onClick={reloadProfile}>
-              <RotateCw size={15} aria-hidden="true" /> Retry
-            </button>
-          </div>
+      <ProfileHeader user={user} academic />
+      <div className="grid min-w-0 gap-7 py-8 md:grid-cols-[208px_minmax(0,1fr)] md:gap-8">
+        <ProfileIdentity user={user} />
+        <div className="min-w-0">
+          {loading ? (
+            <p role="status" className="flex items-center gap-3 py-4 text-sm text-base-content/70">
+              <span className="loading loading-spinner loading-sm" aria-hidden="true" /> Loading your profile...
+            </p>
+          ) : result.error ? (
+            <div role="alert" className="flex items-start gap-3 rounded-md border border-error/40 bg-error/10 p-4">
+              <TriangleAlert size={20} className="mt-0.5 shrink-0 text-error" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Unable to load profile</p>
+                <p className="mt-1 break-words text-sm leading-6 text-base-content/75">{result.error}</p>
+                <button className="btn btn-outline btn-sm mt-3" type="button" onClick={reloadProfile}>
+                  <RotateCw size={15} aria-hidden="true" /> Retry
+                </button>
+              </div>
+            </div>
+          ) : (
+            <StudentProfileForm key={requestKey} profile={result.profile} departments={result.departments} />
+          )}
         </div>
-      ) : (
-        <StudentProfileForm key={requestKey} profile={result.profile} departments={result.departments} />
-      )}
+      </div>
     </DashboardLayout>
   )
 }

@@ -3,6 +3,7 @@ import { LogOut, RotateCw } from 'lucide-react'
 import { AuthContext } from './AuthContext'
 import { clearSessionToken, fetchSessionUser, isValidSessionUser, readSessionToken, saveSessionToken } from './authSession'
 import AuthLayout from '../components/AuthLayout'
+import { saveAccount } from './accountApi'
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -90,6 +91,14 @@ export default function AuthProvider({ children }) {
     setToken(null)
   }
 
+  async function updateAccount(values, signal) {
+    const updated = await saveAccount(token, user, values, signal)
+    if (!signal?.aborted) {
+      setUser((current) => current?.id === updated.id ? updated : current)
+    }
+    return updated
+  }
+
   function retryRestore() {
     setRestoreError('')
     setRestoreAttempt((attempt) => attempt + 1)
@@ -122,7 +131,7 @@ export default function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, updateAccount }}>
       {children}
     </AuthContext.Provider>
   )

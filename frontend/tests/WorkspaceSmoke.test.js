@@ -9,6 +9,7 @@ let server, App, Sidebar, ProtectedRoute, AuthContext, ThemeContext
 const roles = ['admin', 'student', 'academic_supervisor', 'company_representative']
 const allowed = {
   '/dashboard': roles,
+  '/account': roles,
   '/profile': ['student'],
   '/departments': ['admin'],
   '/admin/users': ['admin'],

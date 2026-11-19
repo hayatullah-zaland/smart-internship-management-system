@@ -5,12 +5,14 @@ import { AuthContext } from '../context/AuthContext'
 import Brand from './Brand'
 import NavbarClock from './NavbarClock'
 import ThemeToggle from './ThemeToggle'
+import ProfileAvatar from './ProfileAvatar'
 
 export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   const { user, signOut } = useContext(AuthContext)
   const { pathname, hash } = useLocation()
   let pageTitle = hash === '#account' ? 'Account details' : 'Dashboard'
   if (pathname === '/profile') pageTitle = 'My profile'
+  if (pathname === '/account') pageTitle = 'My account'
   if (pathname === '/departments') pageTitle = 'Departments'
   if (pathname === '/opportunities') pageTitle = 'Opportunities'
   if (pathname === '/applications') pageTitle = 'My applications'
@@ -23,7 +25,6 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   if (pathname === '/weekly-reports') pageTitle = 'Weekly reports'
   if (pathname === '/evaluations') pageTitle = 'Evaluations'
   const role = user.role.replaceAll('_', ' ')
-  const initial = Array.from(user.name.trim())[0]?.toUpperCase() || 'U'
 
   return (
     <header className="sticky top-0 z-30 border-b border-base-300 bg-base-100 text-base-content">
@@ -64,16 +65,15 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
         </div>
         <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1 sm:gap-3 xl:col-start-4">
           <span className="mx-1 hidden h-7 w-px bg-base-300 md:block" aria-hidden="true" />
-          <div className="flex min-w-0 items-center gap-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-base-300 bg-base-200 text-sm font-semibold" aria-hidden="true">
-              {initial}
-            </span>
+          <Link to="/account" aria-label="Open my account" title="My account"
+            className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary">
+            <ProfileAvatar user={user} className="size-9 text-sm" />
             <span className="sr-only md:hidden">{user.name}, {role}</span>
             <div className="hidden min-w-0 max-w-44 md:block">
               <p className="truncate text-sm font-semibold" title={user.name}>{user.name}</p>
               <p className="truncate text-xs leading-5 text-base-content/70 capitalize" title={role}>{role}</p>
             </div>
-          </div>
+          </Link>
           <div className="tooltip tooltip-bottom tooltip-end" data-tip="Sign out">
             <button className="btn btn-ghost btn-square" type="button" onClick={signOut}
               aria-label="Sign out" title="Sign out">

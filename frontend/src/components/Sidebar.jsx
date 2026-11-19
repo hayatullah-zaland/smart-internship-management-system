@@ -13,7 +13,7 @@ export default function Sidebar({ onNavigate }) {
   const links = [
     { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard, current: pathname === '/dashboard' && hash !== '#account' },
     { to: '/opportunities', label: 'Opportunities', Icon: BriefcaseBusiness, current: pathname === '/opportunities' },
-    { to: '/dashboard#account', label: 'Account details', Icon: UserRound, current: pathname === '/dashboard' && hash === '#account' },
+    { to: '/account', label: 'My account', Icon: UserRound, current: pathname === '/account' },
   ]
   if (user.role === 'student') {
     links.push({ to: '/applications', label: 'My applications', Icon: ClipboardList, current: pathname === '/applications' })

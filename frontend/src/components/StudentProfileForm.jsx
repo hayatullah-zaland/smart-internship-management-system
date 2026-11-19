@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react'
-import { CheckCircle2, RotateCcw, RotateCw, Save } from 'lucide-react'
+import { CheckCircle2, CircleDot, GraduationCap, RotateCcw, RotateCw, Save } from 'lucide-react'
 import { AuthContext } from '../context/AuthContext'
 import { saveStudentProfile, validateStudentProfile } from '../context/studentProfileApi'
 import { fetchDepartments } from '../context/departmentApi'
@@ -107,19 +107,22 @@ export default function StudentProfileForm({ profile, departments }) {
   }
 
   return (
-    <section className="border-b border-base-300 py-8" aria-labelledby="academic-heading">
-      <h2 id="academic-heading" className="text-base font-semibold">Academic details</h2>
+    <section className="min-w-0" aria-labelledby="academic-heading">
+      <div className="flex items-center gap-2.5">
+        <GraduationCap size={20} className="shrink-0 text-primary" aria-hidden="true" />
+        <h2 id="academic-heading" className="text-base font-semibold">Academic details</h2>
+      </div>
       {!hasDepartments && (
         <div className="mt-5 border-l-2 border-warning bg-warning/10 p-4">
           <p role="status" className="min-w-0 text-sm leading-6">No departments available. Please contact your administrator.</p>
         </div>
       )}
-      <form className="mt-6 max-w-3xl" onSubmit={handleSubmit} noValidate aria-busy={saving}>
+      <form className="mt-7" onSubmit={handleSubmit} noValidate aria-busy={saving}>
         <fieldset disabled={saving} className="grid min-w-0 gap-6 sm:grid-cols-2">
           <legend className="sr-only">Student profile</legend>
           <div className="min-w-0">
             <label className="mb-2 flex min-h-6 items-center text-sm font-medium" htmlFor="student-number">Student number</label>
-            <input className={`input w-full ${errors.studentNumber ? 'input-error' : ''}`} id="student-number"
+            <input className={`input h-11 w-full bg-base-100 ${errors.studentNumber ? 'input-error' : ''}`} id="student-number"
               name="studentNumber" type="text" required maxLength={30} placeholder="STU-001" autoComplete="off"
               value={values.studentNumber} onChange={updateField} aria-invalid={Boolean(errors.studentNumber)}
               aria-describedby={errors.studentNumber ? 'student-number-error' : undefined} />
@@ -136,7 +139,7 @@ export default function StudentProfileForm({ profile, departments }) {
                 </button>
               </div>
             </div>
-            <select className={`select w-full ${errors.departmentId ? 'select-error' : ''}`} id="student-department"
+            <select className={`select h-11 w-full bg-base-100 ${errors.departmentId ? 'select-error' : ''}`} id="student-department"
               name="departmentId" required value={values.departmentId} onChange={updateField}
               disabled={!hasDepartments || refreshingDepartments} aria-busy={refreshingDepartments}
               aria-invalid={Boolean(errors.departmentId)} aria-describedby={errors.departmentId ? 'department-error' : undefined}>
@@ -151,7 +154,7 @@ export default function StudentProfileForm({ profile, departments }) {
           </div>
           <div className="min-w-0">
             <label className="mb-2 flex min-h-6 items-center text-sm font-medium" htmlFor="student-semester">Semester</label>
-            <input className={`input w-full ${errors.semester ? 'input-error' : ''}`} id="student-semester"
+            <input className={`input h-11 w-full bg-base-100 ${errors.semester ? 'input-error' : ''}`} id="student-semester"
               name="semester" type="number" required min={1} max={12} step={1} inputMode="numeric"
               value={values.semester} onChange={updateField} aria-invalid={Boolean(errors.semester)}
               aria-describedby={errors.semester ? 'semester-error' : undefined} />
@@ -159,7 +162,7 @@ export default function StudentProfileForm({ profile, departments }) {
           </div>
           <div className="min-w-0">
             <label className="mb-2 flex min-h-6 items-center text-sm font-medium" htmlFor="student-phone">Phone number</label>
-            <input className={`input w-full ${errors.phone ? 'input-error' : ''}`} id="student-phone"
+            <input className={`input h-11 w-full bg-base-100 ${errors.phone ? 'input-error' : ''}`} id="student-phone"
               name="phone" type="tel" required minLength={7} maxLength={25} autoComplete="tel" placeholder="+93 700 123 456"
               value={values.phone} onChange={updateField} aria-invalid={Boolean(errors.phone)}
               aria-describedby={errors.phone ? 'phone-error' : undefined} />
@@ -167,17 +170,22 @@ export default function StudentProfileForm({ profile, departments }) {
           </div>
         </fieldset>
         {error && <p role="alert" className="mt-6 break-words rounded-md border border-error/40 bg-error/10 p-3 text-sm leading-6 text-error">{error}</p>}
-        {saved && <p role="status" className="mt-6 flex items-center gap-2 text-sm text-success">
-          <CheckCircle2 size={18} className="shrink-0" aria-hidden="true" /> Profile saved successfully.
-        </p>}
-        <div className="mt-7 flex flex-wrap gap-3">
-          <button className="btn btn-primary min-w-36" type="submit" disabled={saving || refreshingDepartments || !hasDepartments || !changed}>
-            {saving ? <><span className="loading loading-spinner loading-xs" aria-hidden="true" /> Saving...</>
-              : <><Save size={18} aria-hidden="true" /> Save profile</>}
-          </button>
-          <button className="btn btn-ghost" type="button" onClick={resetChanges} disabled={saving || !changed}>
-            <RotateCcw size={17} aria-hidden="true" /> Reset changes
-          </button>
+        <div className="mt-8 grid gap-4 border-t border-base-300 pt-5 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex min-h-6 min-w-0 items-center">
+            {saved ? <p role="status" className="flex items-start gap-2 text-sm text-success">
+              <CheckCircle2 size={17} className="mt-0.5 shrink-0" aria-hidden="true" /> Profile saved successfully.
+            </p> : changed ? <p className="flex items-center gap-2 text-xs text-base-content/65"><CircleDot size={14} className="text-warning" aria-hidden="true" /> Unsaved changes</p> : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="tooltip tooltip-top tooltip-start" data-tip="Reset changes">
+              <button className="btn btn-ghost btn-square size-11" type="button" onClick={resetChanges} disabled={saving || !changed}
+                aria-label="Reset changes" title="Reset changes"><RotateCcw size={18} aria-hidden="true" /></button>
+            </div>
+            <button className="btn btn-primary min-h-11 flex-1 sm:flex-none" type="submit" disabled={saving || refreshingDepartments || !hasDepartments || !changed}>
+              {saving ? <><span className="loading loading-spinner loading-xs" aria-hidden="true" /> Saving...</>
+                : <><Save size={17} aria-hidden="true" /> Save profile</>}
+            </button>
+          </div>
         </div>
       </form>
     </section>
