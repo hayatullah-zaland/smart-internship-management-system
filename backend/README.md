@@ -22,6 +22,45 @@ Postman's Authorization tab as a Bearer Token. Public signup always creates a
 student. Set the first admin's role directly in your own MongoDB database; later
 admins can create role-based accounts using `POST /api/v1/auth/create-user`.
 
+## Own Account and Profile Photo
+
+Every active role can read its own account with `GET /api/v1/auth/me` and
+update it with `PATCH /api/v1/auth/me`, using the current bearer token:
+
+```json
+{ "name": "Updated Name", "email": "updated@example.com", "profileImage": "" }
+```
+
+Fields can be updated separately. An omitted photo is preserved; an empty
+`profileImage` removes it. The frontend accepts JPG, PNG and WebP files up to
+5 MB, resizes them to at most 256 pixels on the longest edge and converts them
+to JPEG before sending. The API accepts only JPEG base64 data URLs up to 64 KB
+of decoded bytes. SVGs, remote URLs, malformed encodings and oversized photos
+are rejected. Only the account-profile endpoint has a 100 KB JSON-body limit;
+other endpoints keep the 16 KB limit.
+
+The small photo is saved with the user in MongoDB, not browser storage or the
+JWT. It is returned by sign-in and `/auth/me`, but excluded from ordinary user
+queries by default. Existing accounts need no migration. The authenticated
+user ID determines ownership; role, account status, passwords and other users'
+details cannot be changed through this endpoint. Duplicate emails return 409.
+
+## Admin User Management
+
+Use an active admin's bearer token. The frontend page is `/admin/users`.
+
+- `POST /api/v1/auth/create-user` creates a user with name, email, password and an explicitly chosen role.
+- `PATCH /api/v1/users/:id` updates a non-admin account's `name` and `email` only. Both are required; names are trimmed, emails are lowercase and duplicate emails return 409. Roles, passwords, photos and status are not reassigned here.
+- `PATCH /api/v1/users/:id/status` activates or deactivates a non-admin account using a boolean `isActive`.
+- `DELETE /api/v1/users/:id` permanently deletes only an inactive, unused, non-admin account. Deactivate first. Academic profiles, applications/reviews, internships, company links, opportunities, reports/reviews and evaluations referencing the account block deletion with 409. No associated records are deleted.
+- `GET /api/v1/users?page=1&limit=10` lists accounts without passwords or photos.
+
+Administrator accounts cannot be deleted, deactivated or edited through these
+management routes; use `/auth/me` for your own name/email/photo. The delete
+query rechecks role and inactive status in case they changed after validation.
+All account-management writes require a valid admin session; other roles get
+403 and expired or inactive sessions get 401. No data migration is needed.
+
 ## Departments and Student Information
 
 An admin creates a department with `POST /api/v1/departments`:

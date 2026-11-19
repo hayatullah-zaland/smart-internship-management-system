@@ -41,7 +41,7 @@ They are not application code and are not part of the ordinary Node test run.
 - [src/pages/Dashboard.jsx](./src/pages/Dashboard.jsx): loads role-specific counters and displays the signed-in dashboard and account details.
 - [src/pages/StudentProfile.jsx](./src/pages/StudentProfile.jsx): loads the student's academic profile and available departments.
 - [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
-- [src/pages/Users.jsx](./src/pages/Users.jsx): admin-only account creation, paginated users and access-status changes.
+- [src/pages/Users.jsx](./src/pages/Users.jsx): admin-only creation, name/email editing, protected deletion, paginated users and access-status changes.
 - [src/context/userApi.js](./src/context/userApi.js): validated user-list, account-creation and status requests.
 - [src/pages/Students.jsx](./src/pages/Students.jsx): admin-only, read-only directory of saved academic profiles.
 - [src/components/StudentList.jsx](./src/components/StudentList.jsx): student identity, active status, department, semester, phone and pagination.
@@ -58,6 +58,7 @@ They are not application code and are not part of the ordinary Node test run.
 - [src/components/StudentProfileForm.jsx](./src/components/StudentProfileForm.jsx): academic form, field validation, save/reset and empty-department state.
 - [src/context/studentProfileApi.js](./src/context/studentProfileApi.js): self-profile requests and validated admin profile-directory requests.
 - [src/components/DashboardStats.jsx](./src/components/DashboardStats.jsx): summary metrics, loading placeholders, refresh and error/retry states.
+- [src/components/DashboardWorkspace.jsx](./src/components/DashboardWorkspace.jsx): role-scoped count comparisons and permitted workspace shortcuts.
 - [src/context/dashboardApi.js](./src/context/dashboardApi.js): authenticated dashboard request and role/counter validation.
 - [src/components/Navbar.jsx](./src/components/Navbar.jsx): shared signed-in navigation with branding, account name/role, theme toggle and sign-out.
 - [src/components/NavbarClock.jsx](./src/components/NavbarClock.jsx): live date/time display using the Asia/Kabul timezone.
@@ -98,13 +99,13 @@ Production hosting will need its own API routing configuration.
 Use an existing account's email and password. Sign in calls
 `POST /api/v1/auth/signin`. The page supports password visibility, pending and
 error states. Successful sign-in updates the shared user/token state and
-automatically redirects to `/dashboard`. The dashboard shows the account's
-name, email and role, and provides a sign-out button.
+automatically redirects to `/account`. Every role can edit their own name,
+email and profile photo there. The dashboard remains available in the sidebar.
 
 Successful sign-in saves only the access token under `sims-access-token` in
 `sessionStorage`. It survives refreshes in the same browser tab. Account details
 and passwords are not saved there. On reload, `GET /api/v1/auth/me` checks the
-saved token and loads the current user's name, email, role and active status
+saved token and loads the current user's name, email, role, photo and active status
 from the backend. Routes wait for this check, avoiding an incorrect redirect
 to login while the account is still loading.
 
@@ -135,13 +136,39 @@ states and displays an account-created message on success. It does not sign in
 automatically. Select **Go to sign in** to use the new credentials. Login and
 signup use the same light/dark appearance and shared layout.
 
+## My Account and Photo
+
+Every role opens `/account` after signing in. The navbar photo/name and
+**My account** sidebar link also open this page. Edit **Full name** or
+**Email address**, choose a **Profile photo**, then select **Save account**.
+The navbar changes only after a successful save. **Reset changes** restores
+the last saved details; the trash button marks the photo for removal on save.
+
+Photo files can be JPG, PNG or WebP, up to 5 MB. The browser creates a small
+JPEG thumbnail with a longest edge of 256 pixels. The backend saves that
+thumbnail with the account, so refreshing or signing in again restores it.
+Missing or unreadable photos use the name initial. Photos and account details
+are not written to localStorage or sessionStorage. Roles are read-only here.
+Students keep their separate `/profile` academic form, also linked from this
+page as **Academic profile**. No other role gains access to student-only APIs.
+
+Both profile pages share a responsive identity column, circular avatar and
+student section tabs. The camera icon opens the native photo picker; unsaved
+changes stay in the form until explicitly saved. Account role/status remain
+read-only. The identity stays visible if academic data fails to load.
+
+To check: sign in, edit your details, choose a photo, save, refresh, and open
+the dashboard. The same saved photo should remain in the navbar. Check removal,
+duplicate-email errors, both themes and a narrow phone viewport as well.
+
 ## Page Routing
 
 React Router gives each page its own URL:
 
-- `/login`: sign-in form; signed-in users are redirected to `/dashboard`.
-- `/signup`: student registration; signed-in users are redirected to `/dashboard`.
-- `/dashboard`: basic protected page with account details and sign-out.
+- `/login`: sign-in form; signed-in users are redirected to `/account`.
+- `/signup`: student registration; signed-in users are redirected to `/account`.
+- `/account`: name, email and profile photo editing for every signed-in role.
+- `/dashboard`: role-specific statistics, count comparisons, workspace shortcuts and account details.
 - `/profile`: academic profile for signed-in students; other roles return to `/dashboard`.
 - `/departments`: department list and creation form for admins; other roles return to `/dashboard`.
 - `/opportunities`: open internship opportunities for every signed-in role; `?page=2` selects another page.
@@ -166,8 +193,8 @@ To check locally:
 
 1. Without signing in, open `/dashboard`; you should arrive at `/login` without seeing account details.
 2. Try an incorrect password; the error should stay on `/login`.
-3. Sign in with an existing account; `/dashboard` should open automatically and show your name, email and role.
-4. While signed in, use links or the browser history to visit `/login` or `/signup`; both should redirect to `/dashboard`.
+3. Sign in with an existing account; `/account` should open automatically and show your name, email and role.
+4. While signed in, use links or the browser history to visit `/login` or `/signup`; both should redirect to `/account`.
 5. Select **Sign out**, then try browser Back or `/dashboard`; the dashboard should remain inaccessible.
 6. Sign in again and refresh `/dashboard` before the 15-minute token expiry; the session check should finish and the dashboard should remain signed in.
 7. Switch themes and navigate between pages to check that the selected theme stays.
@@ -194,7 +221,8 @@ without reloading the app.
 
 The navbar reads the name and role from `AuthContext`, reuses `ThemeToggle`,
 and calls the existing `signOut` action from its labelled sign-out icon button.
-The account initial remains visible on phones, while the full name and role
+The saved profile photo (or name initial when missing or unreadable) remains
+visible on phones and links to `/account`, while the full name and role
 appear from medium screens upward. Long names have bounded, truncated text
 with a full-value title. Screen readers can still read the account identity on
 phones. Login and signup keep their existing `AuthLayout` header.
@@ -221,8 +249,7 @@ full-width content area on smaller screens. `Sidebar` shares the same links
 between desktop and mobile navigation:
 
 - **Dashboard** opens `/dashboard`.
-- **Account details** opens `/dashboard#account`, scrolling and moving focus
-  to the existing account section. It is not a separate profile-editing page.
+- **My account** opens `/account`, with editable name, email and profile photo.
 - **My profile** opens `/profile` for students only, with their academic details.
 - **Departments** opens `/departments` for admins only, with the department list and creation form.
 - **Opportunities** opens `/opportunities` for every signed-in role, with the open-opportunity browsing list.
@@ -262,7 +289,21 @@ Interactive browser and mobile screenshot checks require a connected browser.
 The dashboard calls `GET /api/v1/dashboard/stats` with the current bearer
 token when it opens. Use the summary's refresh icon to request the counts again
 without reloading the page or losing the current login. There is no automatic
-polling, and the metric tiles are read-only until their module pages are built.
+polling. Metric tiles are read-only; the primary action and **Quick access**
+links open the existing pages allowed for that account's role.
+
+The dashboard uses staggered entrance animations, animated count bars and
+subtle hover states. All dashboard animations/transitions are disabled when
+the operating system requests reduced motion. No animation delays requests
+or changes the actual values. Both themes work on mobile and desktop.
+
+The snapshot compares active/completed internship counts for admins and company
+representatives, and daily/weekly report counts for students and supervisors.
+Bar lengths are relative to the largest displayed count, not percentages of
+completion or all records. Supervisor counts include submitted reports only;
+students see all report statuses. No trend, activity feed or completion rate
+is invented. Failed refreshes hide both previous tiles and previous bars;
+workspace links remain available.
 
 The backend decides the scope and returns different counters for each role:
 
@@ -291,7 +332,7 @@ To check locally:
 3. Use **Refresh summary** to update counts without a full-page refresh.
 4. Stop the backend, refresh the summary, then restore the backend and use **Retry**.
 5. After a token expires, refresh the summary; the app should return to login.
-6. Check both themes and narrow/wide screens, including the Account details sidebar link.
+6. Check both themes and narrow/wide screens, including the My account sidebar link.
 
 `npm test` checks token storage/clearing, blocked storage, session-response
 validation, the initial restoration gate, API request headers, every role's
@@ -1052,12 +1093,14 @@ is covered below, along with company management and opportunity publishing.
 
 ## User Management
 
-Admins have a **Users** sidebar link at `/admin/users`. The route and all three
+Admins have a **Users** sidebar link at `/admin/users`. The route and all five
 backend endpoints are admin-only. Other roles cannot access this screen.
 
 - `GET /api/v1/users?page=1&limit=10`: shows real names, emails, roles, saved access status and join dates in Asia/Kabul. Pagination has no invented totals, search or role filters; the current backend does not provide those filters.
 - `POST /api/v1/auth/create-user`: creates an account with an explicitly selected Student, Academic supervisor, Company representative or Administrator role. It sends only trimmed name, lowercase email, unchanged password and role. Confirm password is checked locally and is not sent. The public signup page still creates students only.
 - `PATCH /api/v1/users/:id/status`: sends only `isActive: true` or `false`. Changing the access switch is a local draft. A named Activate/Deactivate confirmation must be submitted before a write; Cancel restores the saved value. Administrator status is protected both here and by the backend.
+- `PATCH /api/v1/users/:id`: edits only a non-admin account's name and email. The pencil icon opens a draft; Save changes submits it and Cancel discards it. Role, password, profile photo, account status and related records are preserved.
+- `DELETE /api/v1/users/:id`: permanently removes an unused, inactive, non-admin account after an explicit confirmation. Active accounts must be deactivated first. Any academic profile, application, assignment, company link, opportunity, report or evaluation referencing the user blocks deletion; no project records are cascaded away.
 
 Names must have 2-100 characters. Passwords must have at least 8 characters and
 no more than 72 UTF-8 bytes, with a matching confirmation. The backend remains
@@ -1066,18 +1109,22 @@ role and warns when Administrator is selected. Creating an account does not
 sign in as the new person or replace the current admin session. Passwords are
 cleared after confirmed creation and are not stored in browser storage.
 
-An account's role, name or email cannot be edited from this screen, and there
-is no delete/reset-password command. Deactivated accounts cannot sign in or
-use authenticated endpoints. This does not delete their internship history.
+Existing roles cannot be reassigned from this screen, and there is no
+reset-password command. Administrator rows have no edit, status or delete
+commands; admins use My account for their own name and email. Deactivated
+accounts cannot sign in or use authenticated endpoints, without losing history.
 A company representative account must still be assigned to a company through
 the separate company workflow; choosing its role does not create a company.
 
-Only a matching server response confirms a new account or status change.
-Success refreshes the current list page; newly created users appear first on
-page 1 because the backend sorts newest first. A shared request lock disables
-creation, status changes, refresh and pagination during a write. Duplicate,
-missing-account and uncertain results require a successful refresh before
-another write. Check the existing email/account before retrying; writes are
+Only a matching server response confirms a creation, update, deletion or status
+change. Creation opens page 1 so the new account is visible; editing refreshes
+the current page. Deleting the last account on a later page returns one page.
+Creation remains available while the directory loads or fails: a list failure
+does not prevent entering a new account. A shared request lock disables all
+other writes, refresh and pagination during a write. A duplicate email on create
+or edit can be corrected without a list refresh. Missing accounts, rejected
+deletions and uncertain results require a successful refresh before another
+write. Check the existing email/account before retrying; writes are
 not automatically repeated. HTTP 401 signs out. Leaving the page or changing
 the account, token or URL page clears unsaved fields and cancels obsolete
 requests. Cancellation cannot undo a write already accepted by the server.
@@ -1090,6 +1137,9 @@ Manual checks with existing accounts:
 4. Toggle a non-admin account, check the named confirmation, cancel once, then explicitly deactivate it. Check its saved status and that it cannot sign in; reactivate deliberately afterward.
 5. Confirm admin accounts have no status switch. Check that students, supervisors and representatives cannot open `/admin/users` or call its backend endpoints.
 6. Check both themes, narrow screens, long names/emails, keyboard controls, pending-write locks, expired sessions and connection failures. Refresh/check account history before retrying an uncertain write.
+7. Open the pencil icon on a non-admin row, change the name/email, cancel once, then save deliberately. Refresh and confirm the updated identity and unchanged role/status.
+8. For an unused test account, explicitly deactivate it, open the trash icon and confirm deletion. Check Cancel makes no request, and linked users and administrator accounts cannot be deleted.
+9. Simulate a directory failure and confirm New user remains usable. Correct a duplicate-email creation error and retry without refreshing the list.
 
 The tests in `tests/userApi.test.js` and `tests/Users.test.js` use mocked
 requests and SSR markup. They cover field/byte limits, role selection, narrow
@@ -1268,13 +1318,14 @@ Latest verification results:
 
 | Check | Result |
 | --- | --- |
-| Frontend `npm test` | 494 passed, no failures or skips |
-| Ordinary backend `npm test` | 16 passed, 1 opt-in MongoDB test skipped |
-| Frontend `npm run build` | Passed |
-| Local frontend route requests | 15 SPA entry URLs returned HTTP 200; this is not authenticated browser acceptance |
-| Unauthenticated protected API GETs | All 12 checked endpoints returned HTTP 401 through the Vite proxy |
-| Playwright `npm run test:browser` | Full 22-test suite passed; all API data mocked |
-| Responsive/theme browser checks | 162 role/page/viewport/theme checks passed; representative screenshots visually inspected |
+| Frontend `npm test` | 527 passed, no failures or skips |
+| Ordinary backend `npm test` | 34 passed, 1 opt-in MongoDB test skipped |
+| Frontend `npm run build` | Passed; existing large-chunk advisory remains |
+| Frontend `npm run lint` | No errors; existing DailyReportForm date-purity warning remains |
+| Earlier local frontend route requests | 15 SPA entry URLs returned HTTP 200; not authenticated browser acceptance or a fresh acceptance run |
+| Earlier unauthenticated protected API GETs | All 12 checked endpoints returned HTTP 401 through the Vite proxy; not repeated for this commit batch |
+| Playwright `npm run test:browser` | Full 51-test suite passed; all API data mocked |
+| Responsive/theme browser checks | 186 role/page/viewport/theme checks passed, plus focused profile/dashboard checks; representative screenshots visually inspected |
 | Real MongoDB integration | Not run: opt-in test deliberately disabled |
 
 `tests/WorkspaceSmoke.test.js` checks every protected URL's role matrix, sidebar
@@ -1325,11 +1376,13 @@ isolated browser context. Test clicks do not change MongoDB or real accounts.
 
 Browser coverage includes:
 
-- All 27 permitted role/page combinations at 320, 768 and 1440 pixel widths, in both themes: 162 loaded page checks with populated records, long text and expanded details.
+- All 31 permitted role/page combinations at 320, 768 and 1440 pixel widths, in both themes: 186 loaded page checks with populated records, long text and expanded details.
 - Login/signup layout, registration, sign-in, refresh persistence, logout and saved theme, plus failed/expired session restoration.
 - Mobile dialog keyboard focus, Escape, navigation, desktop resize and scroll-lock cleanup.
 - Every header tooltip hovered at each tested width; neutral draft/completed/company badges retain readable theme text in mobile and desktop layouts.
 - Student profile editing, forbidden-route redirects, empty/paginated lists, retryable failures and API 401 sign-out.
+- Modern account/academic profiles, native photo selection, long identities, saved avatars and responsive layouts in both themes.
+- All four dashboards in both themes at 320, 768 and 1440 pixels, permitted shortcuts, real/zero/large counts, loading/refresh/retry, expired sessions and reduced-motion animation behavior.
 - Admin department/user/company creation, explicit account-access confirmation, representative assignment, student directory, application review and internship assignment/history.
 - Opportunity publication validation, Kabul deadline conversion, pending locks, repeated submission prevention and student application/duplicate handling.
 - Daily and weekly draft creation/editing/submission, assigned-supervisor change requests/approval and read-only submitted reports.
