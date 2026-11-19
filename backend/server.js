@@ -33,6 +33,8 @@ const PORT = process.env.PORT || 5000;
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173' }));
+// A small account photo needs more space; other endpoints keep the 16 KB limit.
+app.use('/api/v1/auth/me', express.json({ limit: '100kb' }));
 app.use(express.json({ limit: '16kb' }));
 
 app.get('/api/v1/health', (req, res) => {

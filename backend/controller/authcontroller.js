@@ -1,11 +1,13 @@
 import bcrypt from 'bcrypt';
 import validator from 'validator';
 import jwt from 'jsonwebtoken';
-import { User } from '../model/user.model.js';
+import { User, isValidProfileImage } from '../model/user.model.js';
 
-export function getProfile(req, res) {
-  // requireAuth has already checked the token and found this user.
-  const user = req.user;
+export async function getProfile(req, res) {
+  const user = await User.findById(req.user.id).select('+profileImage');
+  if (!user || !user.isActive) {
+    return res.status(401).json({ success: false, message: 'Your account is unavailable.' });
+  }
 
   res.status(200).json({
     success: true,
@@ -16,16 +18,20 @@ export function getProfile(req, res) {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
+        profileImage: user.profileImage || '',
       },
     },
   });
 }
 
 export async function updateProfile(req, res) {
-  // 1. Accept either a name, an email, or both.
-  let { name, email } = req.body || {};
-  if (name === undefined && email === undefined) {
-    return res.status(400).json({ success: false, message: 'Please provide a name or email to update.' });
+  // Accept only editable fields belonging to the authenticated account.
+  let { name, email, profileImage } = req.body || {};
+  if (name === undefined && email === undefined && profileImage === undefined) {
+    return res.status(400).json({ success: false, message: 'Please provide a name, email or profile photo to update.' });
+  }
+  if (profileImage !== undefined && !isValidProfileImage(profileImage)) {
+    return res.status(400).json({ success: false, message: 'Profile photo must be a JPEG image up to 64 KB, or empty to remove it.' });
   }
 
   if (name !== undefined) {
@@ -51,10 +57,13 @@ export async function updateProfile(req, res) {
     }
   }
 
-  // 3. Update only these two fields on the authenticated account.
-  const user = req.user;
+  const user = await User.findById(req.user.id).select('+profileImage');
+  if (!user || !user.isActive) {
+    return res.status(401).json({ success: false, message: 'Your account is unavailable.' });
+  }
   if (name !== undefined) user.name = name;
   if (email !== undefined) user.email = email;
+  if (profileImage !== undefined) user.profileImage = profileImage;
   await user.save();
 
   res.status(200).json({
@@ -67,6 +76,7 @@ export async function updateProfile(req, res) {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
+        profileImage: user.profileImage || '',
       },
     },
   });
@@ -177,7 +187,7 @@ export async function signin(req, res) {
   }
 
   // 2. Find the account, including its normally hidden password hash.
-  const user = await User.findOne({ email }).select('+passwordHash');
+  const user = await User.findOne({ email }).select('+passwordHash +profileImage');
   if (!user) {
     return res.status(401).json({ success: false, message: 'Incorrect email or password.' });
   }
@@ -209,6 +219,7 @@ export async function signin(req, res) {
         email: user.email,
         role: user.role,
         isActive: user.isActive,
+        profileImage: user.profileImage || '',
       },
     },
   });
