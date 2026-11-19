@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { createServer } from 'vite'
 
-let server, UserForm, UserList, UserStatusForm, UserStatusFields, Users, Sidebar, Navbar, ProtectedRoute, App, AuthContext, ThemeContext
+let server, UserForm, UserList, UserStatusForm, UserStatusFields, UserActions, Users, Sidebar, Navbar, ProtectedRoute, App, AuthContext, ThemeContext
 const account = { id: '507f1f77bcf86cd799439011', name: 'Test Teacher', email: 'teacher@example.com', role: 'academic_supervisor', isActive: true, createdAt: '2026-11-16T22:00:00.000Z' }
 const values = { name: '', email: '', role: '', password: '', confirmPassword: '' }
 const formProps = { values, errors: {}, disabled: false, saving: false, showPassword: false, onTogglePassword() {}, onChange() {}, onSubmit() {} }
@@ -19,6 +19,7 @@ before(async () => {
   const statusModule = await server.ssrLoadModule('/src/components/UserStatusForm.jsx')
   UserStatusForm = statusModule.default
   UserStatusFields = statusModule.UserStatusFields
+  UserActions = (await server.ssrLoadModule('/src/components/UserActions.jsx')).default
   Users = (await server.ssrLoadModule('/src/pages/Users.jsx')).default
   Sidebar = (await server.ssrLoadModule('/src/components/Sidebar.jsx')).default
   Navbar = (await server.ssrLoadModule('/src/components/Navbar.jsx')).default
@@ -138,6 +139,20 @@ test('registered users show real roles, saved status and Kabul join dates withou
   assert.doesNotMatch(html, /Delete|Edit user|name="role"|passwordHash/)
 })
 
+test('non-admin rows expose named edit/delete icons without writing or confirming on render', () => {
+  const html = render(h(UserActions, { account, onSaveStatus() {}, onUpdate() {}, onDelete() {} }))
+  assert.match(html, /aria-label="Edit user Test Teacher"/)
+  assert.match(html, /aria-label="Delete user Test Teacher"/)
+  assert.match(html, /Active account for Test Teacher/)
+  assert.doesNotMatch(html, /Permanently delete|Save changes|name="password"|name="role"/)
+})
+
+test('administrator rows never offer edit, delete or status-changing controls', () => {
+  const html = render(h(UserActions, { account: { ...account, role: 'admin' }, onSaveStatus() {}, onUpdate() {}, onDelete() {} }))
+  assert.match(html, /Administrator access protected/)
+  assert.doesNotMatch(html, /<button|<input|<form/)
+})
+
 test('loading, error and empty pages hide stale identities and never fabricate records or totals', () => {
   const loading = render(h(UserList, { ...listProps, loading: true }))
   assert.match(loading, /Loading users/)
@@ -191,12 +206,12 @@ test('only admin navigation includes Users and its breadcrumb identifies the rou
   }
 })
 
-test('users page starts with loading and a disabled blank form rather than fake users or success', () => {
+test('users page keeps the blank create form available while the directory loads', () => {
   const html = render(h(Users))
   assert.match(html, /Administration/)
   assert.match(html, /New user/)
   assert.match(html, /Loading users/)
-  assert.match(html, /fieldset[^>]*disabled=""/)
+  assert.doesNotMatch(html, /fieldset[^>]*disabled=""/)
   assert.doesNotMatch(html, /teacher@example.com|Account created|admin-token/)
 })
 

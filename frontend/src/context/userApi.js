@@ -20,11 +20,7 @@ function accountDetails(user, id) {
 }
 
 export function validateManagedUser(values) {
-  const errors = {}
-  if (typeof values?.name !== 'string' || values.name.trim().length < 2 || values.name.trim().length > 100) {
-    errors.name = 'Enter a name between 2 and 100 characters.'
-  }
-  if (typeof values?.email !== 'string' || !isEmail(values.email.trim())) errors.email = 'Enter a valid email address.'
+  const errors = validateManagedUserDetails(values)
   if (!isRole(values?.role)) errors.role = 'Choose an account role.'
   if (typeof values?.password !== 'string' || values.password.length < 8 || new TextEncoder().encode(values.password).length > 72) {
     errors.password = 'Use at least 8 characters and no more than 72 UTF-8 bytes.'
@@ -33,6 +29,39 @@ export function validateManagedUser(values) {
     errors.confirmPassword = 'The passwords must match.'
   }
   return errors
+}
+
+export function validateManagedUserDetails(values) {
+  const errors = {}
+  if (typeof values?.name !== 'string' || values.name.trim().length < 2 || values.name.trim().length > 100) {
+    errors.name = 'Enter a name between 2 and 100 characters.'
+  }
+  if (typeof values?.email !== 'string' || !isEmail(values.email.trim())) errors.email = 'Enter a valid email address.'
+  return errors
+}
+
+export async function updateManagedUser(token, account, values, signal) {
+  if (!isUser(account, account?.id) || account.role === 'admin') throw new Error('Administrator accounts are protected.')
+  const errors = validateManagedUserDetails(values)
+  if (Object.keys(errors).length) throw new Error(Object.values(errors)[0])
+  const body = { name: values.name.trim(), email: values.email.trim().toLowerCase() }
+  const result = await apiRequest(`/api/v1/users/${account.id}`, token, { method: 'PATCH', values: body, signal })
+  const user = result.data?.user
+  if (!isUser(user, user?.id) || !sameId(user.id, account.id) || user.role !== account.role || user.isActive !== account.isActive
+    || user.name !== body.name || user.email !== body.email) {
+    throw new Error('The update could not be confirmed. Refresh users before trying again.')
+  }
+  return accountDetails(user, user.id)
+}
+
+export async function deleteManagedUser(token, account, signal) {
+  if (!isUser(account, account?.id) || account.role === 'admin') throw new Error('Administrator accounts are protected.')
+  if (account.isActive) throw new Error('Deactivate this account before deleting it.')
+  const result = await apiRequest(`/api/v1/users/${account.id}`, token, { method: 'DELETE', signal })
+  if (!sameId(result.data?.userId, account.id)) {
+    throw new Error('Deletion could not be confirmed. Refresh users before trying again.')
+  }
+  return account.id
 }
 
 export async function fetchManagedUsers(token, page = 1, signal) {

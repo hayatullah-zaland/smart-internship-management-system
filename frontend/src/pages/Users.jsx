@@ -1,11 +1,11 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
-import { createManagedUser, fetchManagedUsers, MAX_USERS_PAGE, updateManagedUserStatus, validateManagedUser } from '../context/userApi'
+import { createManagedUser, deleteManagedUser, fetchManagedUsers, MAX_USERS_PAGE, updateManagedUser, updateManagedUserStatus, validateManagedUser } from '../context/userApi'
 import DashboardLayout from '../components/DashboardLayout'
 import UserForm from '../components/UserForm'
 import UserList from '../components/UserList'
-import UserStatusForm from '../components/UserStatusForm'
+import UserActions from '../components/UserActions'
 
 const emptyValues = { name: '', email: '', role: '', password: '', confirmPassword: '' }
 
@@ -28,7 +28,8 @@ export function UsersWorkspace({ page, onPageChange }) {
   const [write, setWrite] = useState({ kind: '', saving: false, userId: null, message: '', error: false, needsRefresh: false })
   const requestRef = useRef(null)
   const loading = result.key !== refresh
-  const blocked = user.role !== 'admin' || loading || Boolean(result.error) || write.saving || write.needsRefresh
+  const writeBlocked = user.role !== 'admin' || write.saving || write.needsRefresh
+  const blocked = writeBlocked || loading || Boolean(result.error)
 
   useEffect(() => () => requestRef.current?.abort(), [])
   useEffect(() => {
@@ -59,17 +60,17 @@ export function UsersWorkspace({ page, onPageChange }) {
   function refreshUsers() {
     if (!requestRef.current && !write.saving) setRefresh((count) => count + 1)
   }
-  function showWriteError(error) {
+  function showWriteError(error, kind) {
     if (error.status === 401) return signOut()
     const uncertain = !error.status || error.status >= 500
-    const needsRefresh = uncertain || error.status === 404 || error.status === 409
+    const needsRefresh = uncertain || error.status === 404 || (error.status === 409 && kind !== 'create' && kind !== 'update')
     setWrite((current) => ({ ...current, saving: false, error: true, needsRefresh,
       message: uncertain ? 'The change could not be confirmed. Refresh users and check the account before trying again.'
         : `${error.message || 'Unable to save this change.'}${needsRefresh ? ' Refresh users before trying again.' : ''}` }))
   }
   async function createAccount(event) {
     event.preventDefault()
-    if (blocked || requestRef.current) return
+    if (writeBlocked || requestRef.current) return
     const fieldErrors = validateManagedUser(values)
     setErrors(fieldErrors)
     const first = Object.keys(fieldErrors)[0]
@@ -83,9 +84,13 @@ export function UsersWorkspace({ page, onPageChange }) {
       setValues(emptyValues)
       setShowPassword(false)
       setWrite({ kind: '', saving: false, userId: null, message: `Account created for ${account.name} (${account.email}).`, error: false, needsRefresh: false })
-      setRefresh((count) => count + 1)
+      if (page !== 1) onPageChange(1)
+      else setRefresh((count) => count + 1)
     } catch (error) {
-      if (!controller.signal.aborted) showWriteError(error)
+      if (!controller.signal.aborted) {
+        if (error.status === 409) setErrors((current) => ({ ...current, email: error.message }))
+        showWriteError(error, 'create')
+      }
     } finally {
       if (requestRef.current === controller) requestRef.current = null
     }
@@ -101,7 +106,27 @@ export function UsersWorkspace({ page, onPageChange }) {
       setWrite({ kind: '', saving: false, userId: null, message: `${saved.name}'s account ${saved.isActive ? 'activated' : 'deactivated'}.`, error: false, needsRefresh: false })
       setRefresh((count) => count + 1)
     } catch (error) {
-      if (!controller.signal.aborted) showWriteError(error)
+      if (!controller.signal.aborted) showWriteError(error, 'status')
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null
+    }
+  }
+
+  async function manageAccount(kind, account, edits) {
+    if (blocked || requestRef.current || account.role === 'admin' || !['update', 'delete'].includes(kind)) return
+    const controller = new AbortController()
+    requestRef.current = controller
+    setWrite({ kind, saving: true, userId: account.id, message: '', error: false, needsRefresh: false })
+    try {
+      if (kind === 'update') await updateManagedUser(token, account, edits, controller.signal)
+      else await deleteManagedUser(token, account, controller.signal)
+      if (controller.signal.aborted) return
+      setWrite({ kind: '', saving: false, userId: null, message: kind === 'update'
+        ? `Account updated for ${edits.name.trim()}.` : `Account deleted for ${account.name}.`, error: false, needsRefresh: false })
+      if (kind === 'delete' && result.users.length === 1 && page > 1) onPageChange(page - 1)
+      else setRefresh((count) => count + 1)
+    } catch (error) {
+      if (!controller.signal.aborted) showWriteError(error, kind)
     } finally {
       if (requestRef.current === controller) requestRef.current = null
     }
@@ -113,16 +138,18 @@ export function UsersWorkspace({ page, onPageChange }) {
         <p className="mb-2 text-sm font-medium text-primary">Administration</p>
         <h1 className="text-2xl font-semibold">Users</h1>
       </div>
-      {write.message && <p role={write.error ? 'alert' : 'status'}
+      {write.message && (!write.error || !write.userId) && <p role={write.error ? 'alert' : 'status'}
         className={`mt-5 break-words rounded-md border p-3 text-sm leading-6 ${write.error ? 'border-error/40 bg-error/10 text-error' : 'border-success/40 bg-success/10 text-success'}`}>{write.message}</p>}
-      {user.role === 'admin' && <UserForm values={values} errors={errors} disabled={blocked}
+      {user.role === 'admin' && <UserForm values={values} errors={errors} disabled={writeBlocked}
         saving={write.saving && write.kind === 'create'} showPassword={showPassword} onTogglePassword={() => setShowPassword((current) => !current)}
         onChange={changeField} onSubmit={createAccount} />}
       <UserList users={loading ? [] : result.users} page={page} hasNextPage={!loading && result.hasNextPage}
         loading={loading} error={loading ? '' : result.error} disabled={write.saving} onRefresh={refreshUsers}
         onPageChange={(next) => { if (!write.saving && !requestRef.current) onPageChange(next) }}
-        renderActions={user.role === 'admin' ? (account) => <UserStatusForm key={`${refresh}:${account.id}:${account.isActive}`}
-          account={account} disabled={blocked} saving={write.saving && write.userId === account.id} onSave={saveStatus} /> : undefined} />
+        renderActions={user.role === 'admin' ? (account) => <UserActions key={`${refresh}:${account.id}:${account.isActive}`}
+          account={account} disabled={blocked} saving={write.saving && write.userId === account.id} onSaveStatus={saveStatus}
+          error={write.error && write.userId === account.id ? write.message : ''}
+          onUpdate={(account, edits) => manageAccount('update', account, edits)} onDelete={(account) => manageAccount('delete', account)} /> : undefined} />
     </DashboardLayout>
   )
 }
