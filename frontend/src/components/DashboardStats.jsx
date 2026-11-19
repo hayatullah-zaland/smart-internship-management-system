@@ -25,13 +25,13 @@ export default function DashboardStats({ role, stats, loading, error, onRefresh 
   const fields = Array.isArray(dashboardFields[role]) ? dashboardFields[role] : []
 
   return (
-    <section className="border-b border-base-300 py-8" aria-labelledby="summary-heading" aria-busy={loading}>
+    <section className="py-7" aria-labelledby="summary-heading" aria-busy={loading}>
       <div className="mb-5 flex items-center justify-between gap-4">
-        <h2 id="summary-heading" className="text-base font-semibold">Summary</h2>
+        <h2 id="summary-heading" className="text-base font-semibold">At a glance</h2>
         <div className="tooltip tooltip-left" data-tip="Refresh summary">
           <button className="btn btn-ghost btn-square btn-sm" type="button" onClick={onRefresh}
             disabled={loading} aria-label="Refresh dashboard statistics" title="Refresh summary">
-            <RefreshCw size={17} aria-hidden="true" />
+            <RefreshCw size={17} className={loading ? 'motion-safe:animate-spin' : undefined} aria-hidden="true" />
           </button>
         </div>
       </div>
@@ -60,7 +60,7 @@ export default function DashboardStats({ role, stats, loading, error, onRefresh 
         </div>
       ) : (
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {fields.map((key) => {
+          {fields.map((key, index) => {
             const { label, Icon, color } = metricDetails[key]
             const value = stats[key]
             const exactValue = value.toLocaleString('en-US')
@@ -68,12 +68,15 @@ export default function DashboardStats({ role, stats, loading, error, onRefresh 
               ? value.toLocaleString('en-US', { notation: 'compact', maximumFractionDigits: 1 })
               : exactValue
             return (
-              <div key={key} className="min-h-36 min-w-0 rounded-lg border border-base-300 bg-base-100 p-5">
-                <dt className="flex min-h-10 items-start justify-between gap-3">
-                  <span className="min-w-0 break-words text-sm leading-5 text-base-content/70">{label}</span>
-                  <Icon size={19} className={`shrink-0 ${color}`} aria-hidden="true" />
+              <div key={key} className="dashboard-stat dashboard-enter min-h-36 min-w-0 rounded-lg border border-base-300 bg-base-100 p-5"
+                style={{ '--dashboard-delay': `${index * 45}ms` }}>
+                <dt className="flex min-h-11 items-start justify-between gap-3">
+                  <span className="min-w-0 break-words pt-1 text-sm leading-5 text-base-content/70">{label}</span>
+                  <span className={`flex size-9 shrink-0 items-center justify-center rounded-md bg-current/8 ${color}`}>
+                    <Icon size={19} aria-hidden="true" />
+                  </span>
                 </dt>
-                <dd className="mt-3 text-3xl leading-9 font-semibold tabular-nums" title={exactValue} aria-label={exactValue}>
+                <dd className="mt-3 break-all text-3xl leading-9 font-semibold tabular-nums" title={exactValue} aria-label={exactValue}>
                   {displayValue}
                 </dd>
               </div>

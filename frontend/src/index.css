@@ -60,3 +60,50 @@ body {
 .app-drawer::backdrop {
   background: rgb(0 0 0 / 48%);
 }
+
+@keyframes dashboard-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dashboard-meter {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.dashboard-enter {
+  animation: dashboard-enter 420ms ease-out both;
+  animation-delay: var(--dashboard-delay, 0ms);
+}
+
+.dashboard-stat {
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.dashboard-stat:hover {
+  border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-base-300));
+  box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
+}
+
+.dashboard-meter {
+  transform-origin: left;
+  animation: dashboard-meter 650ms 180ms ease-out both;
+}
+
+.dashboard-shortcut {
+  transition: background-color 180ms ease;
+}
+
+.dashboard-shortcut:hover {
+  background: var(--color-base-100);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-enter, .dashboard-meter {
+    animation: none;
+    transform: none;
+  }
+  .dashboard-stat, .dashboard-shortcut {
+    transition: none;
+  }
+}
