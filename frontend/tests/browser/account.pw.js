@@ -37,7 +37,7 @@ async function choosePhoto(page, { usePicker = false } = {}) {
 }
 
 for (const role of roles) {
-  test(role + ': edit account and photo, restore after refresh, and log in to own profile', async ({ context, page }) => {
+  test(role + ': edit account and photo, restore after refresh, and enter the dashboard after login', async ({ context, page }) => {
     const state = await openAccount(context, page, role)
     const navbar = page.getByRole('link', { name: 'Open my account', exact: true })
     await expect(navbar.locator('img')).toHaveCount(0)
@@ -62,8 +62,17 @@ for (const role of roles) {
     await page.getByLabel('Email address', { exact: true }).fill(role + '.updated@example.test')
     await page.getByLabel('Password', { exact: true }).fill('Test-password-123')
     await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-    await expect(page).toHaveURL(/\/account$/)
+    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
     await expect(navbar.locator('img')).toHaveAttribute('src', image)
+    for (const path of ['/', '/login', '/signup']) {
+      await page.goto(path)
+      await expect(page).toHaveURL(/\/dashboard$/)
+      await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible()
+    }
+    await navbar.click()
+    await expect(page).toHaveURL(/\/account$/)
+    await expect(page.getByLabel('Full name', { exact: true })).toHaveValue('Updated ' + role)
     expect(state.unexpected).toEqual([])
   })
 }
