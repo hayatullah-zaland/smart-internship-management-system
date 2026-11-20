@@ -126,6 +126,41 @@ test('company list shows actual contact data, ID and Kabul registration date wit
   assert.doesNotMatch(html, /Delete|Edit company|Test Representative/)
 })
 
+test('every company is a separate named card with unique heading IDs and responsive columns', () => {
+  const companies = [company, { ...company, _id: '507f1f77bcf86cd799439013', name: 'Second Company' }]
+  const html = render(h(CompanyList, { ...listProps, companies }))
+  assert.equal((html.match(/<article\b/g) || []).length, 2)
+  for (const item of companies) {
+    assert.ok(html.includes(`aria-labelledby="company-${item._id}-heading"`))
+    assert.ok(html.includes(`id="company-${item._id}-heading"`))
+  }
+  assert.match(html, /xl:grid-cols-2/)
+  assert.match(html, /rounded-lg border border-base-300/)
+  assert.match(html, /bg-primary\/10 text-primary/)
+  assert.match(html, /bg-info\/10 text-info/)
+  assert.doesNotMatch(html, /Verified|Active company|Total internships|<img/)
+})
+
+test('each representative action stays inside its own company card', () => {
+  const companies = [company, { ...company, _id: '507f1f77bcf86cd799439013', name: 'Second Company' }]
+  const called = []
+  const html = render(h(CompanyList, { ...listProps, companies, renderActions: (item) => {
+    called.push(item._id)
+    return h('button', null, 'Manage ' + item.name)
+  } }))
+  assert.deepEqual(called, companies.map((item) => item._id))
+  const cards = [...html.matchAll(/<article\b[\s\S]*?<\/article>/g)].map((match) => match[0])
+  assert.ok(cards[0].includes('Manage Test Company'))
+  assert.ok(!cards[0].includes('Manage Second Company'))
+  assert.ok(cards[1].includes('Manage Second Company'))
+})
+
+test('company contact links encode special characters in the actual email', () => {
+  const html = render(h(CompanyList, { ...listProps, companies: [{ ...company, contactEmail: 'office+training@example.com' }] }))
+  assert.match(html, /href="mailto:office%2Btraining%40example.com"/)
+  assert.match(html, /office\+training@example.com/)
+})
+
 test('saved raw representative IDs resolve to real names and inactive accounts stay visible', () => {
   const html = render(h(CompanyList, { ...listProps, companies: [{ ...company, representative: representative.id }], representatives: [{ ...representative, isActive: false }] }))
   assert.match(html, /Test Representative/)
@@ -200,6 +235,7 @@ test('Companies initially shows a blank disabled form and separate loading state
   assert.match(html, /New company/)
   assert.match(html, /Loading companies/)
   assert.match(html, /Loading representatives/)
+  assert.match(html, /id="new-company-heading"[\s\S]*id="companies-heading"/)
   assert.match(html, /fieldset[^>]*disabled=""/)
   assert.doesNotMatch(html, /office@example.com|Test Company|created successfully|admin-token/)
 })

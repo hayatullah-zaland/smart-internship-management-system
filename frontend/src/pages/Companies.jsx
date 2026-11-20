@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { UsersRound } from 'lucide-react'
+import { Building2, UsersRound } from 'lucide-react'
 import { AuthContext } from '../context/AuthContext'
 import { assignCompanyRepresentative, createCompany, fetchCompanies, fetchCompanyRepresentatives, MAX_COMPANIES_PAGE, validateCompany } from '../context/companyApi'
 import DashboardLayout from '../components/DashboardLayout'
@@ -122,9 +122,15 @@ export function CompaniesWorkspace({ page, onPageChange }) {
 
   return (
     <DashboardLayout>
-      <div className="border-b border-base-300 pb-7">
-        <p className="mb-2 text-sm font-medium text-primary">Administration</p>
-        <h1 className="text-2xl font-semibold">Companies</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-base-300 pb-7">
+        <div>
+          <p className="mb-2 text-sm font-medium text-primary">Administration</p>
+          <h1 className="text-2xl font-semibold">Companies</h1>
+        </div>
+        <button type="button" className="btn btn-primary min-h-11" disabled={blocked} onClick={() => {
+          document.getElementById('new-company-heading')?.scrollIntoView({ block: 'start' })
+          document.getElementById('company-name')?.focus({ preventScroll: true })
+        }}><Building2 size={18} aria-hidden="true" /> New company</button>
       </div>
       {write.message && <p role={write.error ? 'alert' : 'status'}
         className={`mt-5 break-words rounded-md border p-3 text-sm leading-6 ${write.error ? 'border-error/40 bg-error/10 text-error' : 'border-success/40 bg-success/10 text-success'}`}>{write.message}</p>}
