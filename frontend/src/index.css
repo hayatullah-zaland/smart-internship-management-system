@@ -37,6 +37,48 @@ body {
   color: var(--color-base-content);
 }
 
+.navbar-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "heading account" "search tools" "clock clock";
+  grid-template-rows: 4.5rem 3.5rem 2.25rem;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+
+.navbar-heading { grid-area: heading; }
+.navbar-search { grid-area: search; }
+.navbar-clock { grid-area: clock; }
+.navbar-tools { grid-area: tools; }
+.navbar-account { grid-area: account; }
+
+.navbar-search-input::-webkit-search-cancel-button { display: none; }
+
+.navbar-search-results {
+  width: calc(100vw - 1.5rem);
+  max-width: calc(100vw - 1.5rem);
+}
+
+@media (min-width: 40rem) {
+  .navbar-shell {
+    grid-template-columns: auto minmax(10rem, 1fr) auto;
+    grid-template-areas: "heading search account" "clock clock tools";
+    grid-template-rows: 4.5rem 2.75rem;
+    column-gap: 1rem;
+  }
+  .navbar-clock { width: min(100%, 22rem); }
+  .navbar-search-results { width: max(100%, 20rem); }
+}
+
+@media (min-width: 90rem) {
+  .navbar-shell {
+    grid-template-columns: auto minmax(10rem, 1fr) auto auto auto;
+    grid-template-areas: "heading search clock tools account";
+    grid-template-rows: 5rem;
+  }
+  .navbar-clock { width: auto; }
+}
+
 .app-drawer {
   position: fixed;
   inset: 0 auto 0 0;

@@ -337,7 +337,8 @@ test('representative validates and publishes once while pending, then sees the r
     await expect.poll(() => state.calls.filter((call) => call.method === 'POST' && call.path === '/opportunities').length).toBe(1)
     await expect(page.getByLabel('Title', { exact: true })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Refresh opportunities', exact: true })).toBeDisabled()
-    await page.locator('form').evaluate((form) => { form.requestSubmit(); form.requestSubmit() })
+    await page.getByRole('region', { name: 'New opportunity', exact: true }).locator('form')
+      .evaluate((form) => { form.requestSubmit(); form.requestSubmit() })
     expect(state.calls.filter((call) => call.method === 'POST')).toHaveLength(1)
   } finally { release(); state.holdWrites = null }
   await expect(page.getByRole('status').filter({ hasText: 'published' })).toBeVisible()

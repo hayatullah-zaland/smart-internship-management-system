@@ -1,43 +1,14 @@
 import { useContext } from 'react'
-import { Award, BookOpen, BriefcaseBusiness, Building2, ClipboardList, FileText, GraduationCap, LayoutDashboard, NotebookTabs, Settings, UserRound, UsersRound } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
-import { INTERNSHIP_ROLES } from '../context/internshipApi'
-import { DAILY_REPORT_ROLES } from '../context/dailyReportApi'
-import { WEEKLY_REPORT_ROLES } from '../context/weeklyReportApi'
-import { EVALUATION_ROLES } from '../context/evaluationApi'
+import { getWorkspaceLinks } from './workspaceNavigation'
 
 export default function Sidebar({ onNavigate }) {
   const { user } = useContext(AuthContext)
   const { pathname, hash } = useLocation()
-  const links = [
-    { to: '/dashboard', label: 'Dashboard', Icon: LayoutDashboard, current: pathname === '/dashboard' && hash !== '#account' },
-    { to: '/opportunities', label: 'Opportunities', Icon: BriefcaseBusiness, current: pathname === '/opportunities' },
-    { to: '/account', label: 'My account', Icon: UserRound, current: pathname === '/account' },
-  ]
-  if (user.role === 'student') {
-    links.push({ to: '/applications', label: 'My applications', Icon: ClipboardList, current: pathname === '/applications' })
-    links.push({ to: '/profile', label: 'My profile', Icon: GraduationCap, current: pathname === '/profile' })
-  }
-  if (user.role === 'admin') {
-    links.push({ to: '/admin/students', label: 'Students', Icon: GraduationCap, current: pathname === '/admin/students' })
-    links.push({ to: '/admin/users', label: 'Users', Icon: UsersRound, current: pathname === '/admin/users' })
-    links.push({ to: '/admin/companies', label: 'Companies', Icon: Building2, current: pathname === '/admin/companies' })
-    links.push({ to: '/admin/applications', label: 'Applications', Icon: ClipboardList, current: pathname === '/admin/applications' })
-    links.push({ to: '/departments', label: 'Departments', Icon: GraduationCap, current: pathname === '/departments' })
-  }
-  if (INTERNSHIP_ROLES.includes(user.role)) {
-    links.push({ to: '/internships', label: 'Internships', Icon: NotebookTabs, current: pathname === '/internships' })
-  }
-  if (DAILY_REPORT_ROLES.includes(user.role)) {
-    links.push({ to: '/daily-reports', label: 'Daily reports', Icon: FileText, current: pathname === '/daily-reports' })
-  }
-  if (WEEKLY_REPORT_ROLES.includes(user.role)) {
-    links.push({ to: '/weekly-reports', label: 'Weekly reports', Icon: BookOpen, current: pathname === '/weekly-reports' })
-  }
-  if (EVALUATION_ROLES.includes(user.role)) {
-    links.push({ to: '/evaluations', label: 'Evaluations', Icon: Award, current: pathname === '/evaluations' })
-  }
+  const links = getWorkspaceLinks(user.role).filter((link) => !link.footer)
+    .map((link) => ({ ...link, current: pathname === link.to && !(link.to === '/dashboard' && hash === '#account') }))
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
