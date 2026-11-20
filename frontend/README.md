@@ -42,10 +42,12 @@ They are not application code and are not part of the ordinary Node test run.
 - [src/pages/StudentProfile.jsx](./src/pages/StudentProfile.jsx): loads the student's academic profile and available departments.
 - [src/pages/Departments.jsx](./src/pages/Departments.jsx): admin-only department creation and list refresh.
 - [src/pages/Users.jsx](./src/pages/Users.jsx): admin-only creation, name/email editing, protected deletion, paginated users and access-status changes.
+- [src/components/UserCategories.jsx](./src/components/UserCategories.jsx): same-page category navigation for students, teachers, admins and company accounts.
 - [src/context/userApi.js](./src/context/userApi.js): validated user-list, account-creation and status requests.
 - [src/pages/Students.jsx](./src/pages/Students.jsx): admin-only, read-only directory of saved academic profiles.
 - [src/components/StudentList.jsx](./src/components/StudentList.jsx): student identity, active status, department, semester, phone and pagination.
 - [src/pages/Companies.jsx](./src/pages/Companies.jsx): admin-only company registration, paginated records and representative assignment.
+- [src/components/CompanyList.jsx](./src/components/CompanyList.jsx): separate responsive company cards with contact details, saved representative information and per-company actions.
 - [src/context/companyApi.js](./src/context/companyApi.js): company requests and representative choices from the existing users API.
 - [src/pages/Opportunities.jsx](./src/pages/Opportunities.jsx): authenticated browsing and representative-only publishing with page URLs and refresh/retry.
 - [src/components/OpportunityForm.jsx](./src/components/OpportunityForm.jsx): company ID, title, description, Kabul deadline and capacity fields.
@@ -99,8 +101,8 @@ Production hosting will need its own API routing configuration.
 Use an existing account's email and password. Sign in calls
 `POST /api/v1/auth/signin`. The page supports password visibility, pending and
 error states. Successful sign-in updates the shared user/token state and
-automatically redirects to `/account`. Every role can edit their own name,
-email and profile photo there. The dashboard remains available in the sidebar.
+automatically redirects to `/dashboard` for every role. Personal details and
+profile photos remain editable through **My account** in the sidebar or navbar.
 
 Successful sign-in saves only the access token under `sims-access-token` in
 `sessionStorage`. It survives refreshes in the same browser tab. Account details
@@ -138,8 +140,8 @@ signup use the same light/dark appearance and shared layout.
 
 ## My Account and Photo
 
-Every role opens `/account` after signing in. The navbar photo/name and
-**My account** sidebar link also open this page. Edit **Full name** or
+Every role opens `/dashboard` after signing in. The navbar photo/name and
+**My account** sidebar link open `/account`. Edit **Full name** or
 **Email address**, choose a **Profile photo**, then select **Save account**.
 The navbar changes only after a successful save. **Reset changes** restores
 the last saved details; the trash button marks the photo for removal on save.
@@ -165,8 +167,8 @@ duplicate-email errors, both themes and a narrow phone viewport as well.
 
 React Router gives each page its own URL:
 
-- `/login`: sign-in form; signed-in users are redirected to `/account`.
-- `/signup`: student registration; signed-in users are redirected to `/account`.
+- `/login`: sign-in form; signed-in users are redirected to `/dashboard`.
+- `/signup`: student registration; signed-in users are redirected to `/dashboard`.
 - `/account`: name, email and profile photo editing for every signed-in role.
 - `/dashboard`: role-specific statistics, count comparisons, workspace shortcuts and account details.
 - `/profile`: academic profile for signed-in students; other roles return to `/dashboard`.
@@ -193,8 +195,8 @@ To check locally:
 
 1. Without signing in, open `/dashboard`; you should arrive at `/login` without seeing account details.
 2. Try an incorrect password; the error should stay on `/login`.
-3. Sign in with an existing account; `/account` should open automatically and show your name, email and role.
-4. While signed in, use links or the browser history to visit `/login` or `/signup`; both should redirect to `/account`.
+3. Sign in with an existing account; `/dashboard` should open automatically. Open **My account** to edit personal details.
+4. While signed in, use links or the browser history to visit `/login` or `/signup`; both should redirect to `/dashboard`.
 5. Select **Sign out**, then try browser Back or `/dashboard`; the dashboard should remain inaccessible.
 6. Sign in again and refresh `/dashboard` before the 15-minute token expiry; the session check should finish and the dashboard should remain signed in.
 7. Switch themes and navigate between pages to check that the selected theme stays.
@@ -221,25 +223,83 @@ without reloading the app.
 
 The navbar reads the name and role from `AuthContext`, reuses `ThemeToggle`,
 and calls the existing `signOut` action from its labelled sign-out icon button.
-The saved profile photo (or name initial when missing or unreadable) remains
-visible on phones and links to `/account`, while the full name and role
-appear from medium screens upward. Long names have bounded, truncated text
-with a full-value title. Screen readers can still read the account identity on
-phones. Login and signup keep their existing `AuthLayout` header.
+`NavbarAccount` groups the saved circular profile photo (or name initial), name
+and role in a compact account link with a subtle theme-aware background. Names
+remain visible on phones with bounded ellipsis; mobile role labels are Student,
+Admin, Teacher or Company. Larger screens show the full friendly role label
+with its icon. The title and accessible description retain the full saved name
+and role. No online/verified status is invented. Clicking the identity still
+opens `/account`; login and signup retain their existing `AuthLayout` header.
 
-Message and notification icons sit next to the theme toggle. They are disabled,
-with hover/focus tooltips indicating that they are not available yet: the project
-does not currently have messaging or notification endpoints. No unread badges,
-invented notifications or empty inbox results are displayed. On narrow phones
-the tools use their own row below the date/time, keeping the brand, menu and
-account controls in the first row without crowding the clock.
+### Page Search
+
+`NavbarSearch` appears directly after the Workspace breadcrumb (after the brand
+on mobile). It searches the existing pages allowed for the signed-in role,
+not users, companies or report contents in MongoDB. The visible placeholder is
+**Search pages**. Matching is local, case-insensitive and supports multiple words
+and aliases such as password, theme, feedback and grades, with up to eight
+results. Empty/unknown queries do not fabricate records or request new APIs.
+
+Search, sidebar links and breadcrumb labels share
+`src/components/workspaceNavigation.js`, using the existing module role lists.
+Route/API authorization remains authoritative; hiding a result is not an access
+control replacement. Admin-only pages do not appear for other roles.
+
+The labelled combobox supports Arrow Up/Down, Enter, Escape, mouse selection,
+an explicit Clear search button and outside/blur dismissal. Keyboard selection
+scrolls into view. Queries remain only in component memory and are discarded
+on page/account changes; they are not sent to the backend or browser storage.
+
+The header uses a single row from 1440 pixels upward, two rows from 640-1439,
+and three compact rows below 640. On phones, search and workspace tools share
+the second row and date/time stay side by side on the third. Fixed grid tracks,
+bounded account text and a viewport-constrained results menu prevent overlap.
+
+Message and notification icons sit next to the theme toggle. They open real,
+account-scoped inbox panels with unread badges, named refresh/mark-all-read/close
+commands, Kabul timestamps, loading/error/retry states and links to the relevant
+pages. Read state is stored by the backend per account and channel, not in
+browser storage. Opening a panel does not mark activity read. On narrow phones
+the tools sit alongside search, while brand/menu/account use the first row and
+date/time use their own row.
+
+### Messages and Notifications
+
+`InboxTools` uses `GET /api/v1/inbox` when mounted/opened, every 30 seconds while
+the document is visible, and on focus/visibility restoration. Successful writes
+through the shared `apiRequest` helper also refresh the inbox. Polling is not
+instant push delivery. Requests/timers are cleaned up on unmount; account/token
+changes discard previous activity. HTTP 401 signs out. A failed request is an
+error with Retry, never a false empty inbox or confirmed read state.
+
+- Student Messages show the teacher's current feedback on daily reports returned for changes. The full plain-text feedback is readable, and the entry links to Daily reports. Resubmission/resolution removes that actionable feedback; there is no chat composer or full feedback history.
+- Student Notifications show daily/weekly submissions, daily approvals, application decisions, recorded internship changes and final evaluations.
+- Teachers see assigned daily submissions and internship assignments/changes; admins see submissions and new pending applications. Company representatives see completion activity for internships in their assigned companies, linking to Evaluations. Other accounts' private messages are not included.
+- Weekly reports have submission only, not approval. Report submission/approval does not automatically complete a placement.
+
+Each channel shows up to 30 recent items; badges count unread items within that
+recent view. **Mark all read** sends only the chosen channel and displayed server
+snapshot time to `PATCH /api/v1/inbox/read`. Newer activity remains unread, and
+out-of-order requests cannot roll back read status. Links open the relevant
+listing page, not a new report-detail view. Native modal panels support Escape,
+backdrop dismissal and focus restoration, with internal scrolling in both themes.
+
+To check with deliberately chosen test records:
+
+1. As a student with an active internship, save and submit a daily report. Check Notifications for its submission.
+2. As its assigned teacher, open the daily-report notification, request changes and supply feedback. Sign in as that student and check Messages (or refresh the panel; background updates arrive within about 30 seconds while visible).
+3. Open the feedback, use **Mark all read**, then reload to check saved read state. Correct and resubmit the report; the teacher can then approve it and the student receives an approval notification.
+4. Submit a weekly draft and check for **Weekly report submitted**, not approved. Check role-appropriate application, internship and evaluation activity using intended test records.
+
+Restart the backend if it was already running without automatic reload, so the
+new inbox routes are available. No package installation or database reset is needed.
 
 The navbar also shows the Gregorian date and a 12-hour clock with seconds in
 `Asia/Kabul` time, labelled **Kabul**. The clock reads the device's current time
 and updates once per second; it does not contact the backend or reload dashboard
 counts. Its timer is cleared on unmount. The date and time stay side by side at
-every screen size. On wide desktops they sit beside the account controls; on
-smaller screens they share a separate full-width slim row. The display has
+every screen size. On wide desktops they sit beside the search/tools/account
+controls; on smaller screens they use the lower header row. The display has
 stable time-digit spacing and does not announce every tick to screen readers.
 
 ## Sidebar and Dashboard Layout
@@ -250,6 +310,7 @@ between desktop and mobile navigation:
 
 - **Dashboard** opens `/dashboard`.
 - **My account** opens `/account`, with editable name, email and profile photo.
+- **Settings** opens `/settings` for every signed-in role. It replaces the old University portal footer, below the scrolling workspace links, on desktop and in the mobile drawer.
 - **My profile** opens `/profile` for students only, with their academic details.
 - **Departments** opens `/departments` for admins only, with the department list and creation form.
 - **Opportunities** opens `/opportunities` for every signed-in role, with the open-opportunity browsing list.
@@ -283,6 +344,49 @@ To check the layout locally:
 7. Sign out from the navbar; the protected dashboard should remain inaccessible.
 
 Interactive browser and mobile screenshot checks require a connected browser.
+
+## Settings
+
+`src/pages/Settings.jsx` uses the existing dashboard layout with three unframed
+sections, available to all four authenticated account roles:
+
+- **Appearance:** Light/Dark radio options update the existing `ThemeContext` immediately. They stay synchronized with the navbar theme button. The existing `sims-theme` local-storage preference survives reload; no new server setting is invented.
+- **Security:** `PasswordSettings` provides current, new and confirm-new password inputs, explicit show/hide and clear commands, and a separate Change password submit action.
+- **Account:** the real signed-in name/email/photo and Edit my account link. Students also have a My academic profile link. Roles, account status and other users cannot be changed here.
+
+The footer link closes the mobile drawer when selected. `/settings` is protected
+by the normal sign-in guard and has its own active sidebar state/navbar breadcrumb.
+The navbar's quick theme toggle is retained.
+
+`src/context/settingsApi.js` validates the current password, the backend's new
+password minimum of 8 characters / maximum of 72 UTF-8 bytes, a different new
+password and matching confirmation. Passwords are never trimmed. It sends only
+`currentPassword` and `newPassword` to the existing
+`PATCH /api/v1/auth/change-password`, with the current bearer token, cancellation
+and the shared 15-second timeout. Confirmation stays local. No new dependencies,
+backend endpoint, database migration or default account is needed.
+
+Blank/invalid fields focus the first error without a request. A wrong current
+password is a correctable field error and preserves the new-password draft.
+Pending writes disable password controls and a request guard prevents duplicate
+submissions. Confirmed success clears all three inputs and hides revealed text.
+Passwords are kept only in component memory, never local/session storage or logs;
+leaving the page or changing accounts discards the draft and aborts its request.
+Aborting cannot undo a write already accepted by the backend.
+
+HTTP 401 signs out. An uncertain network/server/response outcome never claims
+success or automatically retries: it clears the secret inputs, locks resubmission
+and offers Sign out so the user can verify which password works. Existing access
+tokens are not revoked by a password change and retain their normal expiry.
+Recovery, remote-device sign-out, two-factor authentication and notification
+preferences are not added.
+
+To check deliberately with a test account:
+
+1. Open the bottom Settings link, select Dark/Light, reload and compare with the navbar toggle.
+2. Enter an incorrect current password and valid matching new passwords. Check the field error and correct the current password.
+3. Submit once; after confirmation check that all passwords are blank. Sign out and sign in with the new password. Do not use an account whose password you must preserve.
+4. At mobile width, open the navigation drawer and use its bottom Settings link. Check keyboard focus, long identities, validation errors and both themes.
 
 ## Dashboard Statistics
 
@@ -638,7 +742,8 @@ signals. Leaving the page or changing page/filter/account cancels obsolete
 requests, hides older results/notices and cannot undo a write already accepted
 by the server. HTTP 401 signs out; other failures remain readable errors.
 The student can see an updated decision by refreshing **My applications**;
-there are no push notifications or automatic polling.
+that listing does not poll. The navbar inbox separately polls for final
+application decisions every 30 seconds while visible; there is no push delivery.
 
 To check locally with real existing accounts/data:
 
@@ -1096,11 +1201,28 @@ is covered below, along with company management and opportunity publishing.
 Admins have a **Users** sidebar link at `/admin/users`. The route and all five
 backend endpoints are admin-only. Other roles cannot access this screen.
 
-- `GET /api/v1/users?page=1&limit=10`: shows real names, emails, roles, saved access status and join dates in Asia/Kabul. Pagination has no invented totals, search or role filters; the current backend does not provide those filters.
+- `GET /api/v1/users?page=1&limit=10`: shows real names, emails, roles, saved access status and join dates in Asia/Kabul. An optional `role` query filters accounts before pagination. There are no invented totals or name/email search filters.
 - `POST /api/v1/auth/create-user`: creates an account with an explicitly selected Student, Academic supervisor, Company representative or Administrator role. It sends only trimmed name, lowercase email, unchanged password and role. Confirm password is checked locally and is not sent. The public signup page still creates students only.
 - `PATCH /api/v1/users/:id/status`: sends only `isActive: true` or `false`. Changing the access switch is a local draft. A named Activate/Deactivate confirmation must be submitted before a write; Cancel restores the saved value. Administrator status is protected both here and by the backend.
 - `PATCH /api/v1/users/:id`: edits only a non-admin account's name and email. The pencil icon opens a draft; Save changes submits it and Cancel discards it. Role, password, profile photo, account status and related records are preserved.
 - `DELETE /api/v1/users/:id`: permanently removes an unused, inactive, non-admin account after an explicit confirmation. Active accounts must be deactivated first. Any academic profile, application, assignment, company link, opportunity, report or evaluation referencing the user blocks deletion; no project records are cascaded away.
+
+The same Users page has **All accounts**, **Students**, **Teachers**, **Admins**
+and **Company accounts** categories. Teachers are `academic_supervisor` accounts;
+company accounts are `company_representative` users, not Company records.
+For example, `/admin/users?role=student&page=2` loads the second student page.
+Filtering happens in the backend, not just within an already-loaded mixed page.
+Refresh and pagination preserve the selected category; changing category starts
+at page one. Browser Back/Forward restores the corresponding category/page.
+An unknown frontend category falls back to All accounts; an invalid API role
+returns 400. The unfiltered API remains available to existing account selectors.
+
+The creation form appears first, with the account categories and directory below it. The
+top **New user** command scrolls to and focuses that form. Role selection is
+still explicit, even inside an admin category. Creating a different role from
+a filtered category opens the new account's category on page one. Editing and
+deletion retain the current category. Categories cannot change during a pending
+or uncertain write, and changing category discards local unsaved form drafts.
 
 Names must have 2-100 characters. Passwords must have at least 8 characters and
 no more than 72 UTF-8 bytes, with a matching confirmation. The backend remains
@@ -1121,12 +1243,12 @@ change. Creation opens page 1 so the new account is visible; editing refreshes
 the current page. Deleting the last account on a later page returns one page.
 Creation remains available while the directory loads or fails: a list failure
 does not prevent entering a new account. A shared request lock disables all
-other writes, refresh and pagination during a write. A duplicate email on create
+other writes, category navigation, refresh and pagination during a write. A duplicate email on create
 or edit can be corrected without a list refresh. Missing accounts, rejected
 deletions and uncertain results require a successful refresh before another
 write. Check the existing email/account before retrying; writes are
 not automatically repeated. HTTP 401 signs out. Leaving the page or changing
-the account, token or URL page clears unsaved fields and cancels obsolete
+the account, token, category or URL page clears unsaved fields and cancels obsolete
 requests. Cancellation cannot undo a write already accepted by the server.
 
 Manual checks with existing accounts:
@@ -1140,6 +1262,7 @@ Manual checks with existing accounts:
 7. Open the pencil icon on a non-admin row, change the name/email, cancel once, then save deliberately. Refresh and confirm the updated identity and unchanged role/status.
 8. For an unused test account, explicitly deactivate it, open the trash icon and confirm deletion. Check Cancel makes no request, and linked users and administrator accounts cannot be deleted.
 9. Simulate a directory failure and confirm New user remains usable. Correct a duplicate-email creation error and retry without refreshing the list.
+10. Open each account category, check its rows, visit page two and refresh. Change category and check page one, then use browser Back. Create an intended test account in another role and verify its category opens.
 
 The tests in `tests/userApi.test.js` and `tests/Users.test.js` use mocked
 requests and SSR markup. They cover field/byte limits, role selection, narrow
@@ -1159,6 +1282,20 @@ listing. No backend permissions or endpoints are changed.
 - `GET /api/v1/companies?page=1&limit=10`: paginated real names, addresses, contact emails, company IDs, registration dates in Asia/Kabul and saved representative links.
 - `POST /api/v1/companies`: sends only trimmed `name`, trimmed `address` and lowercase `contactEmail`. The server derives `createdBy`. A new company starts without a representative.
 - `PATCH /api/v1/companies/:id/representative`: sends only `representativeId`. Assignment replaces the company's existing link when one is present. It does not change the account's role or status.
+
+The registration form appears first, with the company directory below it.
+Each company has a separate bordered card with a
+colored building icon, name, contact email, address, actual ID, Kabul registration
+date and current representative. Cards use two columns on wide desktop screens
+and a single column on smaller screens, with wrapping for long values in both
+themes. Color accents are decorative, not company status or verified logos.
+The contact email opens an encoded `mailto:` link. Missing/inactive representatives
+remain explicit; there are no invented company activity states or statistics.
+
+Each card keeps its own assignment/replacement form in its footer. Pending
+writes still lock all conflicting controls. The top **New company** command
+scrolls to and focuses the registration form above the directory;
+the three fields and save validation are unchanged.
 
 Company names must have 2-150 characters, addresses 1-300 characters and
 contact emails a valid format up to 254 characters. The backend is the final
@@ -1210,6 +1347,13 @@ They do not execute browser effects/clicks, real company creation/assignment,
 concurrent writes or mobile visual checks. The checks do not change accounts,
 database records, backend files or dependencies. Opportunity publishing is
 covered next.
+
+`tests/browser/companies.pw.js` separately checks the rendered cards, accurate
+representative states, explicit assignment/replacement isolation and pending
+locks, failed lookups, directory retry and creation. Its responsive checks cover
+320, 768, 1024 and 1440 pixels in both themes, with long-content overflow checks
+and screenshots for visual inspection. All API records and writes are mocked;
+these checks do not create or assign real companies.
 
 ## Opportunity Publishing
 
@@ -1318,15 +1462,26 @@ Latest verification results:
 
 | Check | Result |
 | --- | --- |
-| Frontend `npm test` | 527 passed, no failures or skips |
-| Ordinary backend `npm test` | 34 passed, 1 opt-in MongoDB test skipped |
+| Frontend `npm test` | 564 passed, no failures or skips |
+| Ordinary backend `npm test` | 46 passed, 1 opt-in MongoDB test skipped |
 | Frontend `npm run build` | Passed; existing large-chunk advisory remains |
 | Frontend `npm run lint` | No errors; existing DailyReportForm date-purity warning remains |
 | Earlier local frontend route requests | 15 SPA entry URLs returned HTTP 200; not authenticated browser acceptance or a fresh acceptance run |
 | Earlier unauthenticated protected API GETs | All 12 checked endpoints returned HTTP 401 through the Vite proxy; not repeated for this commit batch |
-| Playwright `npm run test:browser` | Full 51-test suite passed; all API data mocked |
-| Responsive/theme browser checks | 186 role/page/viewport/theme checks passed, plus focused profile/dashboard checks; representative screenshots visually inspected |
+| Full Playwright `npm run test:browser` | All 92 tests passed, including existing workflows, user categories, company cards, navbar inbox, Settings and navbar search; all API data mocked |
+| Included Settings browser checks | 12 tests passed: all-role navigation, shared/persistent theme, validation, incorrect current password, pending locks, successful change/new sign-in, clear/discard, uncertain/expired responses, mobile footer and responsive/theme layouts |
+| Included shared-layout browser checks | Six tests passed: all four roles' complete loaded page/theme/viewport matrices, signup/login/theme/logout, and mobile drawer cleanup |
+| Included company / Users browser checks | Five company-card tests and 15 Users tests passed, including the form-above-list layouts |
+| Included inbox browser checks | Nine tests passed: feedback, report submissions, saved read state, polling, account switching, concurrent new activity, failures, expired sessions and responsive keyboard-accessible panels |
+| Included navbar browser checks | Ten tests passed: role-aware page search, keyboard selection/scrolling/dismissal, query isolation, own-account links and long identities at eight widths from 320 to 1920 pixels in both themes |
+| Responsive/theme browser checks | 210 loaded role/page/viewport/theme checks including Settings, plus profile/dashboard/category/company layouts; Settings and validation states checked at 320/768/1440 widths in both themes with screenshots visually inspected; earlier inbox checks at 320x568, 768x1000 and 1440x1000 remain documented above |
+| Browser server / live backend acceptance | Vite served the browser suite on port 5173; all API responses were mocked. Live authenticated backend acceptance was not performed |
 | Real MongoDB integration | Not run: opt-in test deliberately disabled |
+
+On this Windows verification run, all 92 cases passed but Playwright's temporary
+Vite server stalled during teardown. Stopping only that test-owned server allowed
+the runner to finish with exit code 0 and a passed last-run record. This was test
+server cleanup, not a failed application case or a real-database acceptance run.
 
 `tests/WorkspaceSmoke.test.js` checks every protected URL's role matrix, sidebar
 destinations/active links, and server-rendered pages in both theme contexts for
@@ -1376,10 +1531,13 @@ isolated browser context. Test clicks do not change MongoDB or real accounts.
 
 Browser coverage includes:
 
-- All 31 permitted role/page combinations at 320, 768 and 1440 pixel widths, in both themes: 186 loaded page checks with populated records, long text and expanded details.
+- The role/page matrix now includes Settings for all four roles: 35 permitted combinations at 320, 768 and 1440 pixel widths, in both themes (210 loaded page checks per full layout run).
 - Login/signup layout, registration, sign-in, refresh persistence, logout and saved theme, plus failed/expired session restoration.
 - Mobile dialog keyboard focus, Escape, navigation, desktop resize and scroll-lock cleanup.
 - Every header tooltip hovered at each tested width; neutral draft/completed/company badges retain readable theme text in mobile and desktop layouts.
+- Account-scoped message/notification panels, saved read state, report-write refresh, polling, new activity during a read request, expired sessions, retryable failures, keyboard dismissal and both themes at phone/tablet/desktop widths.
+- Settings footer navigation and drawer cleanup, Light/Dark persistence and navbar synchronization, own-password validation/change/new sign-in, pending/uncertain/expired writes and long account identities in both themes.
+- Navbar role-aware page search, keyboard navigation/dismissal/clear, query isolation, all-role account identity and menu/header geometry at 320/375/640/768/1024/1280/1440/1920 widths in both themes.
 - Student profile editing, forbidden-route redirects, empty/paginated lists, retryable failures and API 401 sign-out.
 - Modern account/academic profiles, native photo selection, long identities, saved avatars and responsive layouts in both themes.
 - All four dashboards in both themes at 320, 768 and 1440 pixels, permitted shortcuts, real/zero/large counts, loading/refresh/retry, expired sessions and reduced-motion animation behavior.
@@ -1425,5 +1583,5 @@ test data.
 
 The agreed beginner feature implementation is present. Isolated browser
 verification and real-database acceptance are different checks; the latter
-remains unverified. This is not a claim of production readiness. Deferred features such as notifications,
-messaging, uploads, exports and password recovery remain outside this scope.
+remains unverified. This is not a claim of production readiness. Deferred features such as push/email notifications,
+direct chat, uploads, exports and password recovery remain outside this scope.

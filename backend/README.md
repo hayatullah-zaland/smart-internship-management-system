@@ -45,6 +45,27 @@ queries by default. Existing accounts need no migration. The authenticated
 user ID determines ownership; role, account status, passwords and other users'
 details cannot be changed through this endpoint. Duplicate emails return 409.
 
+## Own Password
+
+Every active signed-in role can use `PATCH /api/v1/auth/change-password` with
+its bearer token and only `currentPassword` and `newPassword`. The frontend
+exposes this existing endpoint under **Settings > Security**. The current
+password is verified with bcrypt; a different new password of at least eight
+characters and no more than 72 UTF-8 bytes is hashed before saving. Passwords
+are not trimmed. Incorrect current passwords and invalid changes return 400;
+missing, expired or inactive sessions return 401. The authenticated user ID,
+not a body-supplied ID or role, determines which password changes.
+
+The response is `{ "success": true, "message": "Password changed successfully." }`,
+without a hash, plain password or new token. Confirmation is checked by the
+frontend and is not sent. Existing access tokens are not revoked by this
+endpoint; they retain their normal 15-minute expiry. This is not password
+recovery, administrator password reset or remote-session management.
+
+`tests/password-change.test.js` checks all four roles, ownership, real bcrypt
+hash/compare behavior and rejected changes using mocked database methods only.
+It does not change passwords in the configured application database.
+
 ## Admin User Management
 
 Use an active admin's bearer token. The frontend page is `/admin/users`.
@@ -54,6 +75,13 @@ Use an active admin's bearer token. The frontend page is `/admin/users`.
 - `PATCH /api/v1/users/:id/status` activates or deactivates a non-admin account using a boolean `isActive`.
 - `DELETE /api/v1/users/:id` permanently deletes only an inactive, unused, non-admin account. Deactivate first. Academic profiles, applications/reviews, internships, company links, opportunities, reports/reviews and evaluations referencing the account block deletion with 409. No associated records are deleted.
 - `GET /api/v1/users?page=1&limit=10` lists accounts without passwords or photos.
+
+Account categories use an optional `role` query, for example
+`GET /api/v1/users?role=student&page=1&limit=10`. Allowed roles are `student`,
+`academic_supervisor`, `admin` and `company_representative`. The database query
+filters by that role before sorting/pagination, including inactive accounts.
+Omit `role` to retain the complete directory. Empty, repeated or unknown role
+values return 400. Filtering does not change administrator-only access.
 
 Administrator accounts cannot be deleted, deactivated or edited through these
 management routes; use `/auth/me` for your own name/email/photo. The delete
@@ -145,10 +173,37 @@ It reads your MongoDB connection configuration, creates its own random
 account must allow creating and deleting that temporary database. The test never
 stores fixtures in the application's configured database.
 
+## Navbar Inbox
+
+`GET /api/v1/inbox` requires a bearer token and derives recent activity from
+existing project records. It accepts no recipient ID: the authenticated account
+and its current role/assignments determine all filters. The response contains
+`userId`, `role`, a server `through` timestamp, `messages`, `notifications`, and
+unread counts. Responses are not cached. Each channel is capped at its 30 most
+recent entries; unread counts describe those entries, not an unlimited archive.
+
+- Students: current daily-report feedback returned for changes; daily/weekly submissions, daily approvals, application approval/rejection, internship status changes and final evaluation scores.
+- Academic supervisors: submitted daily reports from assigned internships, plus their internship assignments/status changes. No weekly-report links are provided because that role has no weekly-report access.
+- Administrators: daily/weekly submissions and pending/under-review application arrivals. Private teacher feedback is not copied to Messages.
+- Company representatives: completed internships belonging to their currently assigned companies, linking to Evaluations.
+
+`PATCH /api/v1/inbox/read` accepts only a `channel` (`messages` or
+`notifications`) and the displayed server `through` timestamp. It saves a
+monotonic read cursor on the current user with `$max`. Older requests cannot
+move it backward, and later-dated activity stays unread. Read cursors are hidden
+from ordinary account/directory queries. Existing accounts need no migration.
+
+Messages are the latest actionable daily feedback, not a chat or permanent
+review archive. Resubmitting/resolving a returned report removes it from that
+message view. Weekly submission is not approval, and neither it nor daily
+approval automatically completes an internship. Old status records without a
+recorded transition time do not receive invented notifications. Email, push,
+live sockets, direct chat and delivery guarantees remain outside this scope.
+
 ## Scope and Limitations
 
 This is a small learning backend, not a production-complete university system.
-Notifications, uploads, exports, certificates, refresh tokens, password recovery,
+Push/email notifications, direct chat, uploads, exports, certificates, refresh tokens, password recovery,
 weekly supervisor review and further company/opportunity editing are deferred.
 Existing weekly draft editing and submission are retained.
 
