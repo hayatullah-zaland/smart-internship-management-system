@@ -143,3 +143,53 @@ test('conditional deletion refuses an account changed after the preflight checks
   assert.equal(response.status, 409); assert.match(response.body.message, /account changed/);
   assert.equal(c.deletes, 0);
 });
+
+test('admin user categories filter the database query before deterministic pagination', async (t) => {
+  const c = setup(t);
+  let expectedRole;
+  t.mock.method(User, 'find', (filter) => {
+    assert.deepEqual(filter, expectedRole ? { role: expectedRole } : {});
+    const query = {
+      select(fields) { assert.equal(fields, 'name email role isActive createdAt'); return query; },
+      sort(order) { assert.deepEqual(order, { createdAt: -1, _id: -1 }); return query; },
+      skip(offset) { assert.equal(offset, 10); return query; },
+      async limit(limit) {
+        assert.equal(limit, 10);
+        return [{ _id: targetId, name: 'Category Account', email: 'category@example.test', role: expectedRole || 'student', isActive: false }];
+      },
+    };
+    return query;
+  });
+  for (const role of [undefined, 'student', 'academic_supervisor', 'admin', 'company_representative']) {
+    expectedRole = role;
+    const response = await c.call('get', '/users?page=2&limit=10' + (role ? `&role=${role}` : ''));
+    assert.equal(response.status, 200);
+    assert.equal(response.body.data.users[0].role, role || 'student');
+    assert.equal(response.body.data.users[0].isActive, false);
+    assert.equal(response.body.data.page, 2);
+    assert.equal(response.body.data.limit, 10);
+  }
+});
+
+test('invalid user categories and pagination are rejected before querying accounts', async (t) => {
+  const c = setup(t);
+  const find = t.mock.method(User, 'find', () => { throw new Error('Unexpected account query'); });
+  for (const query of ['role=teacher', 'role=', 'role=__proto__', 'role=toString', 'role=student&role=admin',
+    'role=student&page=0', 'role=student&limit=101']) {
+    assert.equal((await c.call('get', '/users?' + query)).status, 400, query);
+  }
+  assert.equal(find.mock.callCount(), 0);
+});
+
+test('account category reads still require an active authenticated administrator', async (t) => {
+  const c = setup(t);
+  const find = t.mock.method(User, 'find', () => { throw new Error('Unexpected account query'); });
+  assert.equal((await request(c.app).get('/users?role=student')).status, 401);
+  for (const role of ['student', 'academic_supervisor', 'company_representative']) {
+    c.actor.role = role;
+    assert.equal((await c.call('get', '/users?role=student')).status, 403);
+  }
+  c.actor.role = 'admin'; c.actor.isActive = false;
+  assert.equal((await c.call('get', '/users?role=student')).status, 401);
+  assert.equal(find.mock.callCount(), 0);
+});

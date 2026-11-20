@@ -123,6 +123,10 @@ export async function getUsers(req, res) {
   // Return a small page instead of loading every account at once.
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 20);
+  const role = req.query.role;
+  if (role !== undefined && (typeof role !== 'string' || !User.schema.path('role').enumValues.includes(role))) {
+    return res.status(400).json({ success: false, message: 'Choose a valid account role.' });
+  }
   if (!Number.isSafeInteger(page) || page < 1 || page > 1000000 ||
       !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
     return res.status(400).json({
@@ -131,7 +135,7 @@ export async function getUsers(req, res) {
     });
   }
 
-  const users = await User.find()
+  const users = await User.find(role ? { role } : {})
     .select('name email role isActive createdAt')
     .sort({ createdAt: -1, _id: -1 })
     .skip((page - 1) * limit)

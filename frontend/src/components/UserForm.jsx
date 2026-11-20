@@ -4,7 +4,7 @@ import { USER_ROLES } from '../context/userApi'
 export default function UserForm({ values, errors, disabled, saving, showPassword, onTogglePassword, onChange, onSubmit }) {
   return (
     <section className="border-b border-base-300 py-8" aria-labelledby="new-user-heading">
-      <h2 id="new-user-heading" className="text-base font-semibold">New user</h2>
+      <h2 id="new-user-heading" className="scroll-mt-44 text-base font-semibold">New user</h2>
       <form className="mt-6 max-w-3xl" onSubmit={onSubmit} noValidate aria-busy={saving}>
         <fieldset className="grid min-w-0 gap-6 sm:grid-cols-2" disabled={disabled || saving}>
           <legend className="sr-only">New account details</legend>

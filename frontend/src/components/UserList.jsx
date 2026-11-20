@@ -3,12 +3,12 @@ import { USER_ROLES } from '../context/userApi'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kabul', year: 'numeric', month: 'short', day: '2-digit' })
 
-export default function UserList({ users, page, hasNextPage, loading, error, disabled, onRefresh, onPageChange, renderActions }) {
+export default function UserList({ users, page, role = '', hasNextPage, loading, error, disabled, onRefresh, onPageChange, renderActions }) {
   return (
     <section className="border-b border-base-300 py-8" aria-labelledby="users-heading" aria-busy={loading || disabled}>
       <div className="mb-5 flex items-center justify-between gap-3">
-        <h2 id="users-heading" className="text-base font-semibold">Registered users</h2>
-        <button className="btn btn-ghost btn-square btn-sm" type="button" disabled={loading || disabled} onClick={onRefresh}
+        <h2 id="users-heading" className="min-w-0 break-words text-base font-semibold">{role ? `${USER_ROLES[role]} accounts` : 'Registered users'}</h2>
+        <button className="btn btn-ghost btn-square btn-sm shrink-0" type="button" disabled={loading || disabled} onClick={onRefresh}
           aria-label="Refresh users" title="Refresh users"><RotateCw size={17} aria-hidden="true" /></button>
       </div>
       {loading ? <p role="status" className="flex items-center gap-3 py-6 text-sm text-base-content/70">
@@ -20,7 +20,8 @@ export default function UserList({ users, page, hasNextPage, loading, error, dis
           <button className="btn btn-outline btn-sm mt-3" type="button" disabled={disabled} onClick={onRefresh}><RotateCw size={15} aria-hidden="true" /> Retry</button>
         </div>
       </div> : !users.length ? <p role="status" className="flex items-center gap-3 py-6 text-sm text-base-content/70">
-        <UsersRound size={21} className="shrink-0" aria-hidden="true" /> {page === 1 ? 'No users yet.' : 'No users on this page.'}
+        <UsersRound size={21} className="shrink-0" aria-hidden="true" /> {page === 1
+          ? role ? 'No accounts in this category yet.' : 'No users yet.' : 'No users on this page.'}
       </p> : <ul className="divide-y divide-base-300">
         {users.map((account) => <li key={account.id} className="grid min-w-0 gap-4 py-5 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)]">
           <div className="min-w-0"><h3 className="break-words text-sm font-semibold">{account.name}</h3>

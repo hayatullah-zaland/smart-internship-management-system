@@ -64,6 +64,45 @@ test('full, empty and maximum pages never invent totals or users', async (t) => 
   assert.equal((await fetchManagedUsers('token', page)).hasNextPage, false)
 })
 
+test('each account category is requested from the server before pagination', async (t) => {
+  let selectedRole
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, `/api/v1/users?page=2&limit=10&role=${selectedRole}`)
+    assert.equal(options.headers.Authorization, 'Bearer token')
+    return listResponse([{ ...listed, role: selectedRole }], 2)
+  })
+  for (const role of Object.keys(USER_ROLES)) {
+    selectedRole = role
+    const data = await fetchManagedUsers('token', 2, undefined, role)
+    assert.equal(data.users.length, 1)
+    assert.equal(data.users[0].role, role)
+  }
+})
+
+test('invalid account categories do not send a network request', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('Unexpected request') })
+  for (const role of ['teacher', '__proto__', 'toString', 'all', null, [], {}, 1]) {
+    await assert.rejects(fetchManagedUsers('token', 1, undefined, role), /valid account category/)
+  }
+  assert.equal(fetch.mock.callCount(), 0)
+})
+
+test('filtered lists reject wrong-category accounts instead of silently filtering a mixed page', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => listResponse([listed]))
+  await assert.rejects(fetchManagedUsers('token', 1, undefined, 'student'), /invalid user data/)
+})
+
+test('empty category pages remain empty and category requests retain cancellation', async (t) => {
+  const controller = new AbortController()
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/v1/users?page=1&limit=10&role=student')
+    assert.equal(options.signal.aborted, true)
+    return listResponse([])
+  })
+  controller.abort()
+  assert.deepEqual(await fetchManagedUsers('token', 1, controller.signal, 'student'), { users: [], hasNextPage: false })
+})
+
 test('invalid pagination and missing tokens never make requests', async (t) => {
   const fetch = t.mock.method(globalThis, 'fetch', () => { throw new Error('Unexpected request') })
   for (const page of [0, -1, 1.5, '1', NaN, MAX_USERS_PAGE + 1]) await assert.rejects(fetchManagedUsers('token', page))

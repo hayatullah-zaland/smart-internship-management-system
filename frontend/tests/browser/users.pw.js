@@ -79,6 +79,9 @@ test('edit is explicit, cancellable, locked while saving and persists only ident
     await form.getByRole('button', { name: 'Save changes', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Create user', exact: true })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Refresh users', exact: true })).toBeDisabled()
+    for (const category of await page.getByRole('navigation', { name: 'Account categories', exact: true }).getByRole('link').all()) {
+      await expect(category).toHaveAttribute('aria-disabled', 'true')
+    }
     await expect(form.getByLabel('Full name', { exact: true })).toBeDisabled()
     expect(writes(state, 'PATCH', '/users/' + teacher._id)).toHaveLength(1)
   } finally { release(); state.holdWrites = null }
@@ -200,5 +203,118 @@ test('edit and delete controls fit phones, tablets and desktops in both themes',
       }
     }
     await page.getByRole('button', { name: mode === 'edit' ? 'Cancel user edit' : 'Cancel user deletion', exact: true }).click()
+  }
+})
+
+const categoryLabels = { student: 'Students', academic_supervisor: 'Teachers', admin: 'Admins', company_representative: 'Company accounts' }
+
+test('account categories show separate server-filtered roles, survive refresh and support an empty category', async ({ context, page }) => {
+  const state = await openUsers(context, page)
+  const categories = page.getByRole('navigation', { name: 'Account categories', exact: true })
+  const rows = page.locator('section[aria-labelledby="users-heading"] > ul > li')
+  await expect(rows).toHaveCount(4)
+  for (const [role, label] of Object.entries(categoryLabels)) {
+    await categories.getByRole('link', { name: label, exact: true }).click()
+    await expect(page).toHaveURL(new RegExp('role=' + role + '$'))
+    await expect(categories.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page')
+    await expect(rows).toHaveCount(1)
+    const user = state.users.find((user) => user.role === role)
+    await expect(rows).toContainText(user.email)
+    for (const other of state.users.filter((user) => user.role !== role)) await expect(rows).not.toContainText(other.email)
+    await page.reload()
+    await expect(rows).toHaveCount(1)
+    await expect(rows).toContainText(user.email)
+  }
+  state.users = state.users.filter((user) => user.role !== 'company_representative')
+  await page.getByRole('button', { name: 'Refresh users', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'No accounts in this category yet.' })).toBeVisible()
+  await expect(rows).toHaveCount(0)
+  await categories.getByRole('link', { name: 'All accounts', exact: true }).click()
+  await expect(rows).toHaveCount(3)
+  expect(state.unexpected).toEqual([])
+  expect(state.calls.every((call) => call.method === 'GET')).toBe(true)
+})
+
+test('category pagination, browser history and last-row deletion retain the selected role', async ({ context, page }) => {
+  const state = fixtures('admin')
+  for (let index = 200; index < 210; index++) state.users.push(newUser(index, false))
+  const last = state.users.at(-1)
+  await openUsers(context, page, state, '/admin/users?role=student')
+  const rows = page.locator('section[aria-labelledby="users-heading"] > ul > li')
+  await expect(rows).toHaveCount(10)
+  await page.getByRole('button', { name: 'Next page', exact: true }).click()
+  await expect(page).toHaveURL(/role=student&page=2$/)
+  await expect(rows).toHaveCount(1)
+  await expect(rows).toContainText(last.email)
+  await page.getByRole('navigation', { name: 'Account categories', exact: true }).getByRole('link', { name: 'Teachers', exact: true }).click()
+  await expect(page).toHaveURL(/role=academic_supervisor$/)
+  await expect(rows).toHaveCount(1)
+  await expect(rows).toContainText('academic_supervisor@example.test')
+  await page.goBack()
+  await expect(page).toHaveURL(/role=student&page=2$/)
+  await expect(rows).toHaveCount(1)
+  await page.getByRole('button', { name: 'Delete user ' + last.name, exact: true }).click()
+  await page.getByRole('group', { name: 'Confirm deletion of ' + last.name, exact: true }).getByRole('button', { name: 'Delete user', exact: true }).click()
+  await expect(page).toHaveURL(/role=student$/)
+  await expect(rows).toHaveCount(10)
+  await expect(page.getByRole('navigation', { name: 'Account categories', exact: true }).getByRole('link', { name: 'Students', exact: true })).toHaveAttribute('aria-current', 'page')
+  expect(state.users.some((user) => user._id === last._id)).toBe(false)
+})
+
+test('creating a different role opens its category and the new-user command focuses the form', async ({ context, page }) => {
+  const state = await openUsers(context, page, fixtures('admin'), '/admin/users?role=academic_supervisor')
+  await page.getByRole('button', { name: 'New user', exact: true }).click()
+  await expect(page.getByLabel('Full name', { exact: true })).toBeFocused()
+  await expect(page.getByLabel('Role', { exact: true })).toHaveValue('')
+  await fillNewUser(page, 'New Company Representative', 'category.company@example.test', 'company_representative')
+  await page.getByRole('button', { name: 'Create user', exact: true }).click()
+  await expect(page).toHaveURL(/role=company_representative$/)
+  await expect(page.getByRole('heading', { name: 'New Company Representative', exact: true })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Account categories', exact: true }).getByRole('link', { name: 'Company accounts', exact: true })).toHaveAttribute('aria-current', 'page')
+  expect(state.signedInUserId).toBe(state.users.find((user) => user.email === 'admin@example.test')._id)
+  expect(writes(state, 'POST', '/auth/create-user')).toHaveLength(1)
+})
+
+test('category failures hide old rows, allow retry and invalid category URLs use all accounts', async ({ context, page }) => {
+  const state = await openUsers(context, page, fixtures('admin'), '/admin/users?role=student')
+  state.failures.push({ path: '/users', method: 'GET', status: 503, persistent: true })
+  const categories = page.getByRole('navigation', { name: 'Account categories', exact: true })
+  await categories.getByRole('link', { name: 'Teachers', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Unable to load users')
+  await expect(page.getByRole('heading', { name: 'Browser student', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Create user', exact: true })).toBeEnabled()
+  state.failures = []
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Browser academic supervisor', exact: true })).toBeVisible()
+  await page.goto('/admin/users?role=not-a-real-role')
+  await expect(categories.getByRole('link', { name: 'All accounts', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.locator('section[aria-labelledby="users-heading"] > ul > li')).toHaveCount(4)
+  expect(state.unexpected).toEqual([])
+})
+
+test('account category navigation fits mobile, tablet and desktop in both themes', async ({ context, page }, testInfo) => {
+  await openUsers(context, page, fixtures('admin'), '/admin/users?role=company_representative')
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 })
+    for (const theme of ['light', 'dark']) {
+      const toggle = page.getByRole('button', { name: 'Dark mode', exact: true })
+      if (await toggle.getAttribute('aria-pressed') !== String(theme === 'dark')) await toggle.click()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+      const navigation = page.getByRole('navigation', { name: 'Account categories', exact: true })
+      const form = await page.locator('section[aria-labelledby="new-user-heading"]').boundingBox()
+      const categories = await navigation.boundingBox()
+      const list = await page.locator('section[aria-labelledby="users-heading"]').boundingBox()
+      expect(form.y + form.height).toBeLessThanOrEqual(categories.y)
+      expect(categories.y + categories.height).toBeLessThanOrEqual(list.y)
+      for (const link of await navigation.getByRole('link').all()) {
+        const box = await link.boundingBox()
+        expect(box.width).toBeGreaterThan(0)
+        expect(box.x).toBeGreaterThanOrEqual(0)
+        expect(box.x + box.width).toBeLessThanOrEqual(width)
+      }
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await page.mouse.move(0, 0)
+      await page.screenshot({ path: testInfo.outputPath('categories-' + width + '-' + theme + '.png'), fullPage: true, animations: 'disabled' })
+    }
   }
 })

@@ -64,12 +64,15 @@ export async function deleteManagedUser(token, account, signal) {
   return account.id
 }
 
-export async function fetchManagedUsers(token, page = 1, signal) {
+export async function fetchManagedUsers(token, page = 1, signal, role = '') {
   if (!Number.isSafeInteger(page) || page < 1 || page > MAX_USERS_PAGE) throw new Error('Choose a valid users page.')
-  const result = await apiRequest(`/api/v1/users?page=${page}&limit=${USERS_PAGE_SIZE}`, token, { signal })
+  if (typeof role !== 'string' || (role !== '' && !isRole(role))) throw new Error('Choose a valid account category.')
+  const category = role ? `&role=${encodeURIComponent(role)}` : ''
+  const result = await apiRequest(`/api/v1/users?page=${page}&limit=${USERS_PAGE_SIZE}${category}`, token, { signal })
   const users = result.data?.users
   if (!Array.isArray(users) || result.data.page !== page || result.data.limit !== USERS_PAGE_SIZE || users.length > USERS_PAGE_SIZE
-    || users.some((user) => !isUser(user, user?._id) || typeof user.createdAt !== 'string' || !Number.isFinite(Date.parse(user.createdAt)))
+    || users.some((user) => !isUser(user, user?._id) || (role && user.role !== role)
+      || typeof user.createdAt !== 'string' || !Number.isFinite(Date.parse(user.createdAt)))
     || new Set(users.map((user) => user._id.toLowerCase())).size !== users.length) {
     throw new Error('The server returned invalid user data. Please refresh users.')
   }

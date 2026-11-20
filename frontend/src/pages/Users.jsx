@@ -1,11 +1,13 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
+import { UserPlus } from 'lucide-react'
 import { AuthContext } from '../context/AuthContext'
-import { createManagedUser, deleteManagedUser, fetchManagedUsers, MAX_USERS_PAGE, updateManagedUser, updateManagedUserStatus, validateManagedUser } from '../context/userApi'
+import { createManagedUser, deleteManagedUser, fetchManagedUsers, MAX_USERS_PAGE, updateManagedUser, updateManagedUserStatus, USER_ROLES, validateManagedUser } from '../context/userApi'
 import DashboardLayout from '../components/DashboardLayout'
 import UserForm from '../components/UserForm'
 import UserList from '../components/UserList'
 import UserActions from '../components/UserActions'
+import UserCategories from '../components/UserCategories'
 
 const emptyValues = { name: '', email: '', role: '', password: '', confirmPassword: '' }
 
@@ -14,11 +16,15 @@ export default function Users() {
   const [params, setParams] = useSearchParams()
   const requested = Number(params.get('page') || 1)
   const page = Number.isSafeInteger(requested) && requested >= 1 && requested <= MAX_USERS_PAGE ? requested : 1
-  return <UsersWorkspace key={`${user.id}:${token}:${page}`} page={page}
-    onPageChange={(next) => setParams(next === 1 ? {} : { page: String(next) })} />
+  const requestedRole = params.get('role') || ''
+  const role = Object.hasOwn(USER_ROLES, requestedRole) ? requestedRole : ''
+  return <UsersWorkspace key={`${user.id}:${token}:${role}:${page}`} page={page} role={role}
+    onPageChange={(next, category = role) => setParams({
+      ...(category ? { role: category } : {}), ...(next === 1 ? {} : { page: String(next) }),
+    })} />
 }
 
-export function UsersWorkspace({ page, onPageChange }) {
+export function UsersWorkspace({ page, role = '', onPageChange }) {
   const { user, token, signOut } = useContext(AuthContext)
   const [refresh, setRefresh] = useState(0)
   const [result, setResult] = useState({ key: null, users: [], hasNextPage: false, error: '' })
@@ -36,7 +42,7 @@ export function UsersWorkspace({ page, onPageChange }) {
     const controller = new AbortController()
     async function loadUsers() {
       try {
-        const data = await fetchManagedUsers(token, page, controller.signal)
+        const data = await fetchManagedUsers(token, page, controller.signal, role)
         if (controller.signal.aborted) return
         setResult({ key: refresh, ...data, error: '' })
         setWrite((current) => current.needsRefresh ? { ...current, needsRefresh: false,
@@ -50,7 +56,7 @@ export function UsersWorkspace({ page, onPageChange }) {
     }
     loadUsers()
     return () => controller.abort()
-  }, [token, page, refresh, signOut])
+  }, [token, page, role, refresh, signOut])
 
   function changeField(event) {
     const { name, value } = event.target
@@ -84,7 +90,7 @@ export function UsersWorkspace({ page, onPageChange }) {
       setValues(emptyValues)
       setShowPassword(false)
       setWrite({ kind: '', saving: false, userId: null, message: `Account created for ${account.name} (${account.email}).`, error: false, needsRefresh: false })
-      if (page !== 1) onPageChange(1)
+      if (page !== 1 || (role && role !== account.role)) onPageChange(1, role ? account.role : '')
       else setRefresh((count) => count + 1)
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -134,16 +140,23 @@ export function UsersWorkspace({ page, onPageChange }) {
 
   return (
     <DashboardLayout>
-      <div className="border-b border-base-300 pb-7">
-        <p className="mb-2 text-sm font-medium text-primary">Administration</p>
-        <h1 className="text-2xl font-semibold">Users</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-base-300 pb-7">
+        <div>
+          <p className="mb-2 text-sm font-medium text-primary">Administration</p>
+          <h1 className="text-2xl font-semibold">Users</h1>
+        </div>
+        <button type="button" className="btn btn-primary min-h-11" disabled={writeBlocked} onClick={() => {
+          document.getElementById('new-user-heading')?.scrollIntoView({ block: 'start' })
+          document.getElementById('user-name')?.focus({ preventScroll: true })
+        }}><UserPlus size={18} aria-hidden="true" /> New user</button>
       </div>
       {write.message && (!write.error || !write.userId) && <p role={write.error ? 'alert' : 'status'}
         className={`mt-5 break-words rounded-md border p-3 text-sm leading-6 ${write.error ? 'border-error/40 bg-error/10 text-error' : 'border-success/40 bg-success/10 text-success'}`}>{write.message}</p>}
       {user.role === 'admin' && <UserForm values={values} errors={errors} disabled={writeBlocked}
         saving={write.saving && write.kind === 'create'} showPassword={showPassword} onTogglePassword={() => setShowPassword((current) => !current)}
         onChange={changeField} onSubmit={createAccount} />}
-      <UserList users={loading ? [] : result.users} page={page} hasNextPage={!loading && result.hasNextPage}
+      <UserCategories role={role} disabled={write.saving || write.needsRefresh} />
+      <UserList users={loading ? [] : result.users} page={page} role={role} hasNextPage={!loading && result.hasNextPage}
         loading={loading} error={loading ? '' : result.error} disabled={write.saving} onRefresh={refreshUsers}
         onPageChange={(next) => { if (!write.saving && !requestRef.current) onPageChange(next) }}
         renderActions={user.role === 'admin' ? (account) => <UserActions key={`${refresh}:${account.id}:${account.isActive}`}

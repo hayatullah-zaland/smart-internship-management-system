@@ -94,7 +94,10 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
       if (state.holdDashboard) await state.holdDashboard
       return reply({ role: state.role, stats: state.dashboardStats || Object.fromEntries(dashboardFields[state.role].map((field) => [field, 2])) })
     }
-    if (path === '/users' && method === 'GET') return list('users', state.users)
+    if (path === '/users' && method === 'GET') {
+      const role = url.searchParams.get('role')
+      return list('users', state.users.filter((user) => !role || user.role === role))
+    }
     if (path === '/auth/create-user' && method === 'POST') {
       if (state.users.some((item) => item.email === values.email)) return reply('An account with this email already exists.', 409)
       const created = { _id: nextId(), name: values.name, email: values.email, role: values.role, isActive: true, createdAt: stamp() }

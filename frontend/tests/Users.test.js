@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { MemoryRouter } from 'react-router'
 import { createServer } from 'vite'
 
-let server, UserForm, UserList, UserStatusForm, UserStatusFields, UserActions, Users, Sidebar, Navbar, ProtectedRoute, App, AuthContext, ThemeContext
+let server, UserForm, UserList, UserStatusForm, UserStatusFields, UserActions, UserCategories, Users, Sidebar, Navbar, ProtectedRoute, App, AuthContext, ThemeContext
 const account = { id: '507f1f77bcf86cd799439011', name: 'Test Teacher', email: 'teacher@example.com', role: 'academic_supervisor', isActive: true, createdAt: '2026-11-16T22:00:00.000Z' }
 const values = { name: '', email: '', role: '', password: '', confirmPassword: '' }
 const formProps = { values, errors: {}, disabled: false, saving: false, showPassword: false, onTogglePassword() {}, onChange() {}, onSubmit() {} }
@@ -20,6 +20,7 @@ before(async () => {
   UserStatusForm = statusModule.default
   UserStatusFields = statusModule.UserStatusFields
   UserActions = (await server.ssrLoadModule('/src/components/UserActions.jsx')).default
+  UserCategories = (await server.ssrLoadModule('/src/components/UserCategories.jsx')).default
   Users = (await server.ssrLoadModule('/src/pages/Users.jsx')).default
   Sidebar = (await server.ssrLoadModule('/src/components/Sidebar.jsx')).default
   Navbar = (await server.ssrLoadModule('/src/components/Navbar.jsx')).default
@@ -211,6 +212,7 @@ test('users page keeps the blank create form available while the directory loads
   assert.match(html, /Administration/)
   assert.match(html, /New user/)
   assert.match(html, /Loading users/)
+  assert.match(html, /id="new-user-heading"[\s\S]*aria-label="Account categories"[\s\S]*id="users-heading"/)
   assert.doesNotMatch(html, /fieldset[^>]*disabled=""/)
   assert.doesNotMatch(html, /teacher@example.com|Account created|admin-token/)
 })
@@ -219,12 +221,46 @@ test('page query validation and account scope follow the existing keyed workspac
   function ScopeProbe() {
     const session = useContext(AuthContext)
     const element = Users()
-    assert.equal(element.key, `${session.user.id}:${session.token}:${element.props.page}`)
-    return h('p', null, `Selected page ${element.props.page}`)
+    assert.equal(element.key, `${session.user.id}:${session.token}:${element.props.role}:${element.props.page}`)
+    return h('p', null, `Selected page ${element.props.page}; category ${element.props.role || 'all'}`)
   }
   assert.match(render(h(ScopeProbe), { path: '/admin/users?page=3' }), /Selected page 3/)
   for (const page of ['0', '-1', '1.5', 'abc', '1000001']) {
     assert.match(render(h(ScopeProbe), { path: `/admin/users?page=${page}` }), /Selected page 1/)
+  }
+  for (const role of ['student', 'academic_supervisor', 'admin', 'company_representative']) {
+    assert.match(render(h(ScopeProbe), { path: `/admin/users?role=${role}&page=2` }), new RegExp(`Selected page 2; category ${role}`))
+  }
+  for (const role of ['teacher', '__proto__', 'toString']) {
+    assert.match(render(h(ScopeProbe), { path: `/admin/users?role=${role}` }), /category all/)
+  }
+})
+
+test('account categories provide four separate role views and an all-accounts view on the same page', () => {
+  for (const role of ['', 'student', 'academic_supervisor', 'admin', 'company_representative']) {
+    const html = render(h(UserCategories, { role }))
+    assert.match(html, /aria-label="Account categories"/)
+    for (const label of ['All accounts', 'Students', 'Teachers', 'Admins', 'Company accounts']) assert.ok(html.includes(label))
+    assert.equal((html.match(/aria-current="page"/g) || []).length, 1)
+    const current = html.match(/<a\b[^>]*aria-current="page"[^>]*>/)[0]
+    assert.ok(current.includes(`href="${role ? `/admin/users?role=${role}` : '/admin/users'}"`))
+    assert.doesNotMatch(html, /[?&](amp;)?page=/)
+  }
+})
+
+test('category navigation is unavailable during a pending or uncertain account write', () => {
+  const html = render(h(UserCategories, { role: 'student', disabled: true }))
+  assert.equal((html.match(/aria-disabled="true"/g) || []).length, 5)
+  assert.equal((html.match(/tabindex="-1"/g) || []).length, 5)
+})
+
+test('selected account categories have accurate headings and empty states', () => {
+  for (const [role, heading] of [['student', 'Student accounts'], ['academic_supervisor', 'Academic supervisor accounts'],
+    ['admin', 'Administrator accounts'], ['company_representative', 'Company representative accounts']]) {
+    const html = render(h(UserList, { ...listProps, role, users: [] }))
+    assert.ok(html.includes(heading))
+    assert.match(html, /No accounts in this category yet/)
+    assert.doesNotMatch(html, /No users yet/)
   }
 })
 
