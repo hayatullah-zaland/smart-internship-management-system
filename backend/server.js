@@ -15,6 +15,7 @@ import departmentRoutes from './routes/department.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import evaluationRoutes from './routes/evaluation.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
+import inboxRoutes from './routes/inbox.routes.js';
 import { User } from './model/user.model.js';
 import { Application } from './model/application.model.js';
 import { Internship } from './model/internship.model.js';
@@ -53,6 +54,7 @@ app.use('/api/v1/departments', departmentRoutes);
 app.use('/api/v1/students', studentRoutes);
 app.use('/api/v1/evaluations', evaluationRoutes);
 app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/inbox', inboxRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

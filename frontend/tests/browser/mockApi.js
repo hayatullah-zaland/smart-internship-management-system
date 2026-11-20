@@ -94,6 +94,43 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
       if (state.holdDashboard) await state.holdDashboard
       return reply({ role: state.role, stats: state.dashboardStats || Object.fromEntries(dashboardFields[state.role].map((field) => [field, 2])) })
     }
+    if (path === '/inbox' && method === 'GET') {
+      if (state.holdInbox) await state.holdInbox
+      const through = new Date().toISOString()
+      const person = current()
+      const feed = state.inboxFeeds?.[person._id] || { messages: [], notifications: [] }
+      const messages = [...feed.messages]
+      const notifications = [...feed.notifications]
+      const item = (kind, record, occurredAt, title, body, href) => ({ id: `${kind}:${record._id}:${Date.parse(occurredAt)}`, occurredAt, title, body, href })
+      const assigned = state.internships.filter((record) => record.supervisor === person._id).map((record) => record._id)
+      for (const record of state.dailyReports) {
+        if (person.role === 'student' && record.student === person._id && record.status === 'changes_requested') {
+          messages.push(item('daily-feedback', record, record.reviewedAt, `Daily report feedback - ${record.date.slice(0, 10)}`, `Teacher: ${record.feedback}`, '/daily-reports'))
+        }
+        const scoped = person.role === 'admin' || (person.role === 'student' && record.student === person._id)
+          || (person.role === 'academic_supervisor' && assigned.includes(record.internship) && record.status === 'submitted')
+        if (scoped && record.submittedAt) notifications.push(item('daily-submitted', record, record.submittedAt, 'Daily report submitted', 'The daily report was submitted.', '/daily-reports'))
+        if (person.role === 'student' && record.student === person._id && record.status === 'approved') {
+          notifications.push(item('daily-approved', record, record.reviewedAt, 'Daily report approved', 'Your teacher approved the daily report.', '/daily-reports'))
+        }
+      }
+      for (const record of state.weeklyReports) if (record.submittedAt && (person.role === 'admin' || (person.role === 'student' && record.student === person._id))) {
+        notifications.push(item('weekly-submitted', record, record.submittedAt, 'Weekly report submitted', `Week ${record.weekNumber} was submitted.`, '/weekly-reports'))
+      }
+      const read = state.inboxRead?.[person._id] || {}
+      const channel = (items, key) => items.filter((entry) => entry.occurredAt <= through).sort((a, b) => b.occurredAt.localeCompare(a.occurredAt) || b.id.localeCompare(a.id)).slice(0, 30)
+        .map((entry) => ({ ...entry, read: Boolean(read[key] && entry.occurredAt <= read[key]) }))
+      const data = { userId: person._id, role: person.role, through, messages: channel(messages, 'messages'), notifications: channel(notifications, 'notifications') }
+      data.unread = { messages: data.messages.filter((entry) => !entry.read).length, notifications: data.notifications.filter((entry) => !entry.read).length }
+      return reply(data)
+    }
+    if (path === '/inbox/read' && method === 'PATCH') {
+      state.inboxRead ||= {}
+      state.inboxRead[current()._id] ||= {}
+      const read = state.inboxRead[current()._id]
+      read[values.channel] = read[values.channel] > values.through ? read[values.channel] : values.through
+      return reply({ channel: values.channel, readAt: read[values.channel] })
+    }
     if (path === '/users' && method === 'GET') {
       const role = url.searchParams.get('role')
       return list('users', state.users.filter((user) => !role || user.role === role))

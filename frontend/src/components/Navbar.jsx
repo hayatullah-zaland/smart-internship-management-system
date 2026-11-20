@@ -1,11 +1,12 @@
 import { useContext } from 'react'
-import { Bell, ChevronRight, LogOut, Menu, MessageSquare } from 'lucide-react'
+import { ChevronRight, LogOut, Menu } from 'lucide-react'
 import { Link, useLocation } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 import Brand from './Brand'
 import NavbarClock from './NavbarClock'
 import ThemeToggle from './ThemeToggle'
 import ProfileAvatar from './ProfileAvatar'
+import InboxTools from './InboxTools'
 
 export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   const { user, signOut } = useContext(AuthContext)
@@ -51,16 +52,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
           <NavbarClock />
         </div>
         <div className="col-span-3 col-start-1 row-start-3 flex h-11 items-center justify-end gap-1 border-t border-base-300 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:h-20 sm:border-0 xl:col-start-3" role="group" aria-label="Workspace tools">
-          <div className="tooltip tooltip-bottom tooltip-end" data-tip="Messages (not available yet)" tabIndex={0} role="group" aria-label="Messages (not available yet)">
-            <button className="btn btn-ghost btn-square" type="button" disabled aria-label="Messages (not available yet)">
-              <MessageSquare size={20} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="tooltip tooltip-bottom tooltip-end" data-tip="Notifications (not available yet)" tabIndex={0} role="group" aria-label="Notifications (not available yet)">
-            <button className="btn btn-ghost btn-square" type="button" disabled aria-label="Notifications (not available yet)">
-              <Bell size={20} aria-hidden="true" />
-            </button>
-          </div>
+          <InboxTools />
           <ThemeToggle />
         </div>
         <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1 sm:gap-3 xl:col-start-4">

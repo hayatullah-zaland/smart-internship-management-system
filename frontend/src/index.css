@@ -61,6 +61,25 @@ body {
   background: rgb(0 0 0 / 48%);
 }
 
+.inbox-panel {
+  position: fixed;
+  inset: 1rem 1rem auto auto;
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: none;
+  max-height: calc(100dvh - 2rem);
+  margin: 0;
+  padding: 0;
+}
+
+.inbox-panel[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.inbox-panel::backdrop {
+  background: rgb(0 0 0 / 28%);
+}
+
 @keyframes dashboard-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

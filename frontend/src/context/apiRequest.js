@@ -35,5 +35,8 @@ export async function apiRequest(path, token, { method = 'GET', values, signal }
     error.status = response.status
     throw error
   }
+  if (method !== 'GET' && !path.startsWith('/api/v1/inbox') && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('sims:inbox-refresh'))
+  }
   return result
 }

@@ -25,6 +25,8 @@ const userSchema = new mongoose.Schema({
     default: 'student',
   },
   isActive: { type: Boolean, default: true },
+  messagesReadAt: { type: Date, default: null, select: false },
+  notificationsReadAt: { type: Date, default: null, select: false },
 }, {
   timestamps: true,
   toJSON: { transform(_doc, result) { delete result.passwordHash; delete result.__v; return result; } },
