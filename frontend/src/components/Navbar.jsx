@@ -14,6 +14,7 @@ export default function Navbar({ onOpenSidebar, sidebarOpen }) {
   let pageTitle = hash === '#account' ? 'Account details' : 'Dashboard'
   if (pathname === '/profile') pageTitle = 'My profile'
   if (pathname === '/account') pageTitle = 'My account'
+  if (pathname === '/settings') pageTitle = 'Settings'
   if (pathname === '/departments') pageTitle = 'Departments'
   if (pathname === '/opportunities') pageTitle = 'Opportunities'
   if (pathname === '/applications') pageTitle = 'My applications'

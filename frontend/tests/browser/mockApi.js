@@ -6,10 +6,10 @@ const day = (offset = 0) => new Date(Date.now() + offset * 86400000).toISOString
 const stamp = (offset = 0) => `${day(offset)}T00:00:00.000Z`
 export const roles = ['admin', 'student', 'academic_supervisor', 'company_representative']
 export const routes = {
-  admin: ['/dashboard', '/account', '/departments', '/admin/users', '/admin/students', '/admin/companies', '/opportunities', '/admin/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
-  student: ['/dashboard', '/account', '/profile', '/opportunities', '/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
-  academic_supervisor: ['/dashboard', '/account', '/opportunities', '/internships', '/daily-reports', '/evaluations'],
-  company_representative: ['/dashboard', '/account', '/opportunities', '/evaluations'],
+  admin: ['/dashboard', '/account', '/settings', '/departments', '/admin/users', '/admin/students', '/admin/companies', '/opportunities', '/admin/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
+  student: ['/dashboard', '/account', '/settings', '/profile', '/opportunities', '/applications', '/internships', '/daily-reports', '/weekly-reports', '/evaluations'],
+  academic_supervisor: ['/dashboard', '/account', '/settings', '/opportunities', '/internships', '/daily-reports', '/evaluations'],
+  company_representative: ['/dashboard', '/account', '/settings', '/opportunities', '/evaluations'],
 }
 
 export function fixtures(role = 'student') {
@@ -78,6 +78,12 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
       Object.assign(found, { name: values.name, email: values.email, profileImage: values.profileImage })
       return reply({ user: account(found) })
     }
+    if (path === '/auth/change-password' && method === 'PATCH') {
+      const found = current()
+      if (values.currentPassword !== (found.testPassword || 'CurrentPassword123')) return reply('Current password is incorrect.', 400)
+      found.testPassword = values.newPassword
+      return route.fulfill({ status: 200, json: { success: true, message: 'Password changed successfully.' } })
+    }
     if (path === '/auth/signup' && method === 'POST') {
       const created = { _id: nextId(), name: values.name, email: values.email, role: 'student', isActive: true, createdAt: stamp() }
       state.users = state.users.filter((item) => item.role !== 'student').concat(created)
@@ -86,6 +92,7 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
     if (path === '/auth/signin' && method === 'POST') {
       const found = state.users.find((item) => item.email === values.email)
       if (!found) return reply('Invalid credentials.', 401)
+      if (found.testPassword && values.password !== found.testPassword) return reply('Invalid credentials.', 401)
       state.role = found.role
       state.signedInUserId = found._id
       return reply({ user: account(found), token: 'browser-test-token' })

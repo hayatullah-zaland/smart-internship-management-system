@@ -10,6 +10,7 @@ const roles = ['admin', 'student', 'academic_supervisor', 'company_representativ
 const allowed = {
   '/dashboard': roles,
   '/account': roles,
+  '/settings': roles,
   '/profile': ['student'],
   '/departments': ['admin'],
   '/admin/users': ['admin'],

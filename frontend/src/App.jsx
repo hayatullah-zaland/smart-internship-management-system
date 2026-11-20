@@ -20,6 +20,7 @@ import Users from './pages/Users'
 import Companies from './pages/Companies'
 import Students from './pages/Students'
 import Account from './pages/Account'
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -40,6 +41,11 @@ function App() {
       <Route path="/account" element={
         <ProtectedRoute>
           <Account />
+        </ProtectedRoute>
+      } />
+      <Route path="/settings" element={
+        <ProtectedRoute>
+          <Settings />
         </ProtectedRoute>
       } />
       <Route path="/departments" element={
