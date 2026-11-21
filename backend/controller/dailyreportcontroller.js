@@ -78,7 +78,7 @@ export async function updateDailyReport(req, res) {
   const updated = await DailyReport.findOneAndUpdate(
     { _id: id, student: req.user.id, status: report.status, __v: report.__v },
     { $set: content.data, $inc: { __v: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) return res.status(409).json({ success: false, message: 'Report changed during your request. Refresh and try again.' });
   res.json({ success: true, message: 'Daily report updated.', data: { report: updated } });
@@ -100,7 +100,7 @@ export async function submitDailyReport(req, res) {
   const updated = await DailyReport.findOneAndUpdate(
     { _id: id, student: req.user.id, status: report.status },
     { $set: { status: 'submitted', submittedAt: new Date() }, $inc: { __v: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) return res.status(409).json({ success: false, message: 'Report status changed. Refresh and try again.' });
   res.json({ success: true, message: 'Daily report submitted successfully.', data: { report: updated } });
@@ -129,7 +129,7 @@ export async function approveDailyReport(req, res) {
   const updated = await DailyReport.findOneAndUpdate(
     { _id: id, status: 'submitted' },
     { $set: { status: 'approved', reviewedBy: req.user.id, reviewedAt: new Date() }, $inc: { __v: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) return res.status(409).json({ success: false, message: 'Report has already been reviewed. Refresh and try again.' });
   res.json({ success: true, message: 'Daily report approved.', data: { report: updated } });
@@ -165,7 +165,7 @@ export async function requestDailyReportChanges(req, res) {
       status: 'changes_requested', feedback: feedback.trim(),
       reviewedBy: req.user.id, reviewedAt: new Date(),
     }, $inc: { __v: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) return res.status(409).json({ success: false, message: 'Report has already been reviewed. Refresh and try again.' });
   res.json({ success: true, message: 'Report returned for changes.', data: { report: updated } });

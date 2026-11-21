@@ -29,13 +29,20 @@ function isOpportunity(opportunity) {
       && typeof company.name === 'string' && company.name.trim().length >= 2 && company.name.length <= 150))
 }
 
+export function canReapplyApplication(application, now = Date.now()) {
+  const opportunity = application?.opportunity
+  return application?.status === 'rejected' && isId(opportunity?._id)
+    && opportunity.status === 'open' && isDate(opportunity.deadline) && Date.parse(opportunity.deadline) > now
+}
+
 export async function createApplication(token, opportunityId, signal) {
   if (!isId(opportunityId)) throw new Error('Please choose a valid opportunity.')
   const result = await apiRequest('/api/v1/applications', token, {
     method: 'POST', values: { opportunityId }, signal,
   })
   const application = result.data?.application
-  if (!isApplication(application) || application.opportunity !== opportunityId || application.status !== 'pending') {
+  if (!isApplication(application) || application.opportunity !== opportunityId || application.status !== 'pending'
+    || application.rejectionReason !== '' || application.reviewedBy != null || application.reviewedAt != null) {
     throw new Error('The server returned invalid application data.')
   }
   return application

@@ -32,7 +32,7 @@ test('only assigned supervisors can approve submitted reports once', async (t) =
   t.mock.method(DailyReport, 'findOneAndUpdate', async (filter, update, options) => {
     writes++;
     assert.deepEqual(filter, { _id: reportId, status: 'submitted' });
-    assert.deepEqual(options, { new: true, runValidators: true });
+    assert.deepEqual(options, { returnDocument: 'after', runValidators: true });
     assert.equal(update.$inc.__v, 1);
     assert.deepEqual(Object.keys(update.$set).sort(), ['status', 'reviewedBy', 'reviewedAt'].sort());
     assert.equal(update.$set.reviewedBy, userId);

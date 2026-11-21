@@ -91,7 +91,7 @@ export async function updateWeeklyReport(req, res) {
   const updated = await WeeklyReport.findOneAndUpdate(
     { _id: id, student: req.user.id, status: 'draft', __v: report.__v },
     { $set: { summary: summary.trim(), learning: learning.trim(), challenges: challenges.trim() }, $inc: { __v: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) return res.status(409).json({ success: false, message: 'Report changed during your request. Refresh and try again.' });
   res.json({ success: true, message: 'Weekly report draft updated.', data: { report: updated } });
@@ -116,7 +116,7 @@ export async function submitWeeklyReport(req, res) {
   const updated = await WeeklyReport.findOneAndUpdate(
     { _id: id, student: req.user.id, status: 'draft' },
     { $set: { status: 'submitted', submittedAt: new Date() }, $inc: { __v: 1 } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) return res.status(409).json({ success: false, message: 'Report is no longer a draft. Refresh and try again.' });
   res.json({ success: true, message: 'Weekly report submitted successfully.', data: { report: updated } });

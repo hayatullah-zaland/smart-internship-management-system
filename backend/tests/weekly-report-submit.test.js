@@ -35,7 +35,7 @@ test('students can edit and submit only their own active-internship drafts', asy
   t.mock.method(WeeklyReport, 'findOneAndUpdate', async (filter, update, options) => {
     writes++;
     assert.equal(filter._id, reportId); assert.equal(filter.student, studentId); assert.equal(filter.status, 'draft');
-    assert.deepEqual(options, { new: true, runValidators: true });
+    assert.deepEqual(options, { returnDocument: 'after', runValidators: true });
     assert.equal(update.$inc.__v, 1);
     if (update.$set.status) {
       assert.equal(update.$set.status, 'submitted'); assert.ok(update.$set.submittedAt instanceof Date);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { createApplication, fetchMyApplications, APPLICATIONS_PAGE_SIZE, MAX_APPLICATIONS_PAGE } from '../src/context/applicationApi.js'
+import { canReapplyApplication, createApplication, fetchMyApplications, APPLICATIONS_PAGE_SIZE, MAX_APPLICATIONS_PAGE } from '../src/context/applicationApi.js'
 
 const opportunity = {
   _id: '507f1f77bcf86cd799439011', title: 'Frontend Intern',
@@ -49,12 +49,41 @@ test('invalid opportunity IDs and absent tokens do not send submissions', async 
   assert.equal(fetch.mock.callCount(), 0)
 })
 
+test('only rejected applications with an available open future-dated opportunity can be reapplied', () => {
+  const now = Date.parse('2026-11-20T00:00:00.000Z')
+  const rejected = { ...application, status: 'rejected' }
+  assert.equal(canReapplyApplication(rejected, now), true)
+  for (const status of ['pending', 'under_review', 'approved', 'withdrawn']) {
+    assert.equal(canReapplyApplication({ ...rejected, status }, now), false)
+  }
+  for (const item of [null, { ...opportunity, _id: 'bad' }, { ...opportunity, status: 'closed' },
+    { ...opportunity, status: 'archived' }, { ...opportunity, deadline: 'bad' },
+    { ...opportunity, deadline: new Date(now).toISOString() }, { ...opportunity, deadline: '2020-01-01T00:00:00.000Z' }]) {
+    assert.equal(canReapplyApplication({ ...rejected, opportunity: item }, now), false)
+  }
+  assert.equal(canReapplyApplication(null, now), false)
+})
+
+test('reapplication accepts the same saved pending record with cleared review fields and an HTTP 200 response', async (t) => {
+  const resubmitted = { ...created, reviewedBy: null, reviewedAt: null, rejectionReason: '' }
+  const fetch = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    assert.equal(url, '/api/v1/applications')
+    assert.equal(options.method, 'POST')
+    assert.deepEqual(JSON.parse(options.body), { opportunityId: opportunity._id })
+    return jsonResponse({ success: true, data: { application: resubmitted } }, 200)
+  })
+  assert.deepEqual(await createApplication('test-token', opportunity._id), resubmitted)
+  assert.equal(fetch.mock.callCount(), 1)
+})
+
 test('submission requires a confirmed pending application for exactly the selected opportunity', async (t) => {
   let value
   t.mock.method(globalThis, 'fetch', async () => createdResponse(value))
   for (const item of [null, {}, { ...created, _id: 'bad' }, { ...created, student: null },
     { ...created, status: 'approved' }, { ...created, opportunity: '507f1f77bcf86cd799439099' },
-    { ...created, opportunity }, { ...created, createdAt: 'bad-date' }, { ...created, rejectionReason: null }]) {
+    { ...created, opportunity }, { ...created, createdAt: 'bad-date' }, { ...created, rejectionReason: null },
+    { ...created, rejectionReason: 'Old rejection' }, { ...created, reviewedBy: application.student },
+    { ...created, reviewedAt: '2026-11-16T19:30:00.000Z' }]) {
     value = item
     await assert.rejects(createApplication('test-token', opportunity._id), /invalid application data/)
   }

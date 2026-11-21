@@ -27,6 +27,7 @@ test('student applications enforce authorization, eligibility, uniqueness and pr
   let writes = 0;
   t.mock.method(User, 'findById', async () => ({ id: studentId, role, isActive: active }));
   t.mock.method(Opportunity, 'findById', async () => opportunity);
+  t.mock.method(Application, 'findOneAndUpdate', async () => null);
   t.mock.method(Application, 'create', async (data) => {
     writes++;
     assert.deepEqual(data, { student: studentId, opportunity: opportunityId });

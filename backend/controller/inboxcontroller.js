@@ -121,7 +121,7 @@ export async function markInboxRead(req, res) {
   const field = readFields[channel];
   // Never move the cursor backward, or clear activity newer than the displayed snapshot.
   const saved = await User.findOneAndUpdate({ _id: req.user.id, isActive: true },
-    { $max: { [field]: new Date(through) } }, { new: true }).select(field).lean();
+    { $max: { [field]: new Date(through) } }, { returnDocument: 'after' }).select(field).lean();
   if (!saved) return res.status(401).json({ success: false, message: 'Your account is unavailable.' });
   res.json({ success: true, data: { channel, readAt: saved[field].toISOString() } });
 }

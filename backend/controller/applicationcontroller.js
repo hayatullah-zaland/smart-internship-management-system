@@ -16,7 +16,7 @@ export async function getApplications(req, res) {
   const applications = await Application.find(status === undefined ? {} : { status })
     .populate('student', 'name email')
     .populate({ path: 'opportunity', select: 'title company deadline status', populate: { path: 'company', select: 'name' } })
-    .sort({ createdAt: -1, _id: -1 })
+    .sort({ updatedAt: -1, _id: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
   res.status(200).json({ success: true, data: { applications, page, limit } });
@@ -46,7 +46,7 @@ export async function reviewApplication(req, res) {
       reviewedAt: new Date(),
       rejectionReason: status === 'rejected' ? rejectionReason.trim() : '',
     } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!application) {
     const exists = await Application.exists({ _id: id });
@@ -78,6 +78,15 @@ export async function createApplication(req, res) {
     return res.status(201).json({ success: true, message: 'Application submitted successfully.', data: { application } });
   } catch (error) {
     if (error.code === 11000) {
+      // Reuse only this student's rejected record; simultaneous retries cannot reopen it twice.
+      const application = await Application.findOneAndUpdate(
+        { student: req.user.id, opportunity: opportunity._id, status: 'rejected' },
+        { $set: { status: 'pending', reviewedBy: null, reviewedAt: null, rejectionReason: '' }, $inc: { __v: 1 } },
+        { returnDocument: 'after', runValidators: true },
+      );
+      if (application) {
+        return res.status(200).json({ success: true, message: 'Application resubmitted successfully.', data: { application } });
+      }
       return res.status(409).json({ success: false, message: 'You have already applied for this opportunity.' });
     }
     throw error;
@@ -94,7 +103,7 @@ export async function getMyApplications(req, res) {
 
   const applications = await Application.find({ student: req.user.id })
     .populate({ path: 'opportunity', select: 'title company deadline status', populate: { path: 'company', select: 'name' } })
-    .sort({ createdAt: -1, _id: -1 })
+    .sort({ updatedAt: -1, _id: -1 })
     .skip((page - 1) * limit)
     .limit(limit);
   res.status(200).json({ success: true, data: { applications, page, limit } });

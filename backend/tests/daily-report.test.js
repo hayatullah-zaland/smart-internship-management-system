@@ -65,7 +65,7 @@ test('daily reports protect ownership, validate content and lock submitted draft
   t.mock.method(DailyReport, 'findOneAndUpdate', async (filter, update, options) => {
     updates++;
     assert.equal(filter._id, reportId); assert.equal(filter.student, userId); assert.equal(filter.status, 'draft');
-    assert.deepEqual(options, { new: true, runValidators: true });
+    assert.deepEqual(options, { returnDocument: 'after', runValidators: true });
     assert.equal(update.$inc.__v, 1);
     if (race || report.status !== 'draft') return null;
     if (update.$set.status) {

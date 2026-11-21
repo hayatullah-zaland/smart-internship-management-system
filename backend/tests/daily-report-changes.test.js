@@ -39,7 +39,7 @@ test('assigned supervisors return reports and students correct and resubmit them
   t.mock.method(DailyReport, 'findOneAndUpdate', async (filter, update, options) => {
     assert.equal(filter._id, reportId);
     assert.equal(filter.status, report.status);
-    assert.deepEqual(options, { new: true, runValidators: true });
+    assert.deepEqual(options, { returnDocument: 'after', runValidators: true });
     if (role === 'student') assert.equal(filter.student, userId);
     else {
       assert.equal(update.$set.reviewedBy, userId);
@@ -81,4 +81,24 @@ test('assigned supervisors return reports and students correct and resubmit them
   assert.equal(report.status, 'submitted');
   assert.ok(report.submittedAt instanceof Date);
   assert.equal((await edit()).status, 409);
+  role = 'academic_supervisor';
+  assert.equal((await changes({ feedback: 'Add one more test result.' })).status, 200);
+  assert.equal(report.status, 'changes_requested');
+  role = 'student';
+  assert.equal((await edit()).status, 200);
+  assert.equal((await submit()).status, 200);
+  assert.equal(report.status, 'submitted');
+  role = 'academic_supervisor';
+  const approve = () => request(app).patch(`/api/v1/daily-reports/${reportId}/approve`).auth(token, { type: 'bearer' });
+  assigned = false;
+  assert.equal((await approve()).status, 404);
+  assigned = true;
+  assert.equal((await approve()).status, 200);
+  assert.equal(report.status, 'approved');
+  assert.equal(report.reviewedBy, userId);
+  assert.ok(report.reviewedAt instanceof Date);
+  assert.equal((await approve()).status, 409);
+  role = 'student';
+  assert.equal((await edit()).status, 409);
+  assert.equal((await submit()).status, 409);
 });

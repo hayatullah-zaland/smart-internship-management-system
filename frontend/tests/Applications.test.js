@@ -165,6 +165,17 @@ test('pending submission disables Apply and does not claim success', () => {
   assert.doesNotMatch(html, /Application submitted successfully/)
 })
 
+test('Apply again is an explicit accessible action and remains locked while the rejected application is resubmitting', () => {
+  const html = action({ reapply: true })
+  assert.match(html, /aria-label="Apply again for Frontend Intern"/)
+  assert.match(html, />\s*Apply again<\/button>/)
+  assert.doesNotMatch(html, /disabled=|Application submitted successfully/)
+  const pending = action({ reapply: true, status: 'submitting' })
+  assert.match(pending, /disabled=""/)
+  assert.match(pending, /Applying/)
+  assert.doesNotMatch(pending, /Application submitted successfully/)
+})
+
 test('confirmed and duplicate applications cannot be resubmitted from their action', () => {
   const submitted = action({ status: 'submitted' })
   const duplicate = action({ status: 'duplicate' })

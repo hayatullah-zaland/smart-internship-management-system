@@ -32,7 +32,7 @@ function fixture(t, role = 'student') {
   });
   t.mock.method(User, 'findOneAndUpdate', (filter, update, options) => {
     assert.deepEqual(filter, { _id: user.id, isActive: true });
-    assert.deepEqual(options, { new: true });
+    assert.deepEqual(options, { returnDocument: 'after' });
     const [field, date] = Object.entries(update.$max)[0];
     assert.ok(['messagesReadAt', 'notificationsReadAt'].includes(field));
     if (!user[field] || user[field] < date) user[field] = date;

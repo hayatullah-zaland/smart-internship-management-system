@@ -18,7 +18,7 @@ export async function saveStudentProfile(req, res) {
     const profile = await StudentProfile.findOneAndUpdate(
       { user: req.user.id },
       { $set: { studentNumber: studentNumber.trim().toUpperCase(), department: departmentId, semester, phone: phone.trim() } },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true },
+      { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true },
     );
     return res.json({ success: true, message: 'Student profile saved.', data: { profile } });
   } catch (error) {

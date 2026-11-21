@@ -22,7 +22,7 @@ test('admin review protects access, validates decisions and preserves final outc
   t.mock.method(User, 'findById', async () => ({ id: adminId, role, isActive: true }));
   t.mock.method(Application, 'findOneAndUpdate', async (filter, update, options) => {
     assert.equal(filter._id, applicationId);
-    assert.equal(options.new, true);
+    assert.equal(options.returnDocument, 'after');
     assert.equal(options.runValidators, true);
     assert.deepEqual(Object.keys(update.$set).sort(), ['status', 'reviewedBy', 'reviewedAt', 'rejectionReason'].sort());
     assert.equal(update.$set.reviewedBy, adminId);

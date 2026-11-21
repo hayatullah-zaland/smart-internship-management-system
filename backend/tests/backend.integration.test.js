@@ -15,6 +15,7 @@ import departmentRoutes from '../routes/department.routes.js';
 import studentRoutes from '../routes/student.routes.js';
 import evaluationRoutes from '../routes/evaluation.routes.js';
 import dashboardRoutes from '../routes/dashboard.routes.js';
+import dailyReportRoutes from '../routes/daily-report.routes.js';
 import { User } from '../model/user.model.js';
 import { Company } from '../model/company.model.js';
 import { Opportunity } from '../model/opportunity.model.js';
@@ -48,7 +49,9 @@ test('real MongoDB: department, profile, application, placement, evaluation and 
     app.use('/opportunities', opportunityRoutes); app.use('/applications', applicationRoutes);
     app.use('/internships', internshipRoutes); app.use('/departments', departmentRoutes);
     app.use('/students', studentRoutes); app.use('/evaluations', evaluationRoutes);
-    app.use('/dashboard', dashboardRoutes); app.use(errorHandler);
+    app.use('/dashboard', dashboardRoutes);
+    app.use('/daily-reports', dailyReportRoutes);
+    app.use(errorHandler);
     const password = 'IntegrationPassword123!';
     const passwordHash = await bcrypt.hash(password, 4);
     const tokens = {};
@@ -83,6 +86,15 @@ test('real MongoDB: department, profile, application, placement, evaluation and 
     assert.equal(application.status, 201);
     assert.equal((await call('student', 'post', '/applications', { opportunityId })).status, 409);
     const applicationId = application.body.data.application._id;
+    assert.equal((await call('admin', 'patch', `/applications/${applicationId}/decision`, { status: 'rejected', rejectionReason: 'Please apply again.' })).status, 200);
+    const retry = await call('student', 'post', '/applications', { opportunityId });
+    assert.equal(retry.status, 200);
+    assert.equal(retry.body.data.application._id, applicationId);
+    assert.equal(retry.body.data.application.status, 'pending');
+    assert.equal(retry.body.data.application.rejectionReason, '');
+    assert.equal(retry.body.data.application.reviewedBy, null);
+    assert.equal(retry.body.data.application.reviewedAt, null);
+    assert.equal(await Application.countDocuments({ opportunity: opportunityId }), 1);
     assert.equal((await call('admin', 'patch', `/applications/${applicationId}/decision`, { status: 'approved' })).status, 200);
     const placement = await call('admin', 'post', '/internships', {
       applicationId, supervisorId: supervisor.id,
@@ -101,6 +113,21 @@ test('real MongoDB: department, profile, application, placement, evaluation and 
       startDate: storedPlacement.startDate, endDate: storedPlacement.endDate, slot: 1,
     }), (error) => error.code === 11000 && error.keyPattern?.student === 1);
     assert.equal((await call('admin', 'patch', `/internships/${placementId}/status`, { status: 'active' })).status, 200);
+    const daily = await call('student', 'post', '/daily-reports', {
+      internshipId: placementId, date: new Date().toISOString().slice(0, 10), hours: 6,
+      tasks: 'Completed the assigned task.', learning: 'Practised testing.', challenges: '',
+    });
+    assert.equal(daily.status, 201);
+    const reportId = daily.body.data.report._id;
+    assert.equal((await call('student', 'post', `/daily-reports/${reportId}/submit`)).status, 200);
+    for (let round = 1; round <= 2; round++) {
+      assert.equal((await call('academic_supervisor', 'patch', `/daily-reports/${reportId}/request-changes`, { feedback: `Add detail ${round}.` })).status, 200);
+      assert.equal((await call('student', 'patch', `/daily-reports/${reportId}`, {
+        hours: 6, tasks: `Completed the task with extra detail ${round}.`, learning: 'Practised testing.', challenges: '',
+      })).status, 200);
+      assert.equal((await call('student', 'post', `/daily-reports/${reportId}/submit`)).status, 200);
+    }
+    assert.equal((await call('academic_supervisor', 'patch', `/daily-reports/${reportId}/approve`)).status, 200);
     assert.equal((await call('academic_supervisor', 'post', '/evaluations', { internshipId: placementId, score: 80, comments: 'Early' })).status, 409);
     assert.equal((await call('admin', 'patch', `/internships/${placementId}/status`, { status: 'completed' })).status, 200);
     assert.equal((await Internship.findById(placementId)).isOngoing, false);

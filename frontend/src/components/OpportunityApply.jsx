@@ -4,19 +4,19 @@ import { Link } from 'react-router'
 import { AuthContext } from '../context/AuthContext'
 import { createApplication } from '../context/applicationApi'
 
-export function ApplicationAction({ status = 'idle', message = '', opportunityTitle, onApply }) {
+export function ApplicationAction({ status = 'idle', message = '', opportunityTitle, reapply = false, onApply }) {
   const applied = status === 'submitted' || status === 'duplicate'
   const submitting = status === 'submitting'
   return (
     <div className="mt-6 border-t border-base-300 pt-5" aria-busy={submitting}>
       <div className="flex flex-wrap items-center gap-4">
         <button className="btn btn-primary min-w-40 max-w-full" type="button" onClick={onApply}
-          disabled={submitting || applied} aria-label={`${applied ? 'Applied' : submitting ? 'Applying' : 'Apply'} for ${opportunityTitle}`}>
+          disabled={submitting || applied} aria-label={`${applied ? 'Applied' : submitting ? 'Applying' : reapply ? 'Apply again' : 'Apply'} for ${opportunityTitle}`}>
           {submitting ? <><span className="loading loading-spinner loading-xs" aria-hidden="true" /> Applying...</>
             : applied ? <><CheckCircle2 size={17} aria-hidden="true" /> Applied</>
-              : <><Send size={17} aria-hidden="true" /> Apply</>}
+              : <><Send size={17} aria-hidden="true" /> {reapply ? 'Apply again' : 'Apply'}</>}
         </button>
-        <Link className="link link-primary text-sm" to="/applications">My applications</Link>
+        {!reapply && <Link className="link link-primary text-sm" to="/applications">My applications</Link>}
       </div>
       {applied && <p role="status" className="mt-3 text-sm leading-6 text-success">
         {status === 'duplicate' ? 'You have already applied for this opportunity.' : 'Application submitted successfully.'}
@@ -26,7 +26,7 @@ export function ApplicationAction({ status = 'idle', message = '', opportunityTi
   )
 }
 
-export default function OpportunityApply({ opportunityId, opportunityTitle }) {
+export default function OpportunityApply({ opportunityId, opportunityTitle, reapply = false, onSubmitted }) {
   const { user, token, signOut } = useContext(AuthContext)
   const [state, setState] = useState({ status: 'idle', message: '' })
   const requestRef = useRef(null)
@@ -40,7 +40,10 @@ export default function OpportunityApply({ opportunityId, opportunityTitle }) {
     setState({ status: 'submitting', message: '' })
     try {
       await createApplication(token, opportunityId, controller.signal)
-      if (!controller.signal.aborted) setState({ status: 'submitted', message: '' })
+      if (!controller.signal.aborted) {
+        setState({ status: 'submitted', message: '' })
+        onSubmitted?.()
+      }
     } catch (error) {
       if (controller.signal.aborted) return
       if (error.status === 401) {
@@ -62,5 +65,5 @@ export default function OpportunityApply({ opportunityId, opportunityTitle }) {
   }
 
   if (user.role !== 'student') return null
-  return <ApplicationAction {...state} opportunityTitle={opportunityTitle} onApply={apply} />
+  return <ApplicationAction {...state} opportunityTitle={opportunityTitle} reapply={reapply} onApply={apply} />
 }

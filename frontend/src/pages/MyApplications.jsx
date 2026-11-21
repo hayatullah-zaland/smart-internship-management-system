@@ -2,9 +2,10 @@ import { useContext, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { BriefcaseBusiness } from 'lucide-react'
 import { AuthContext } from '../context/AuthContext'
-import { fetchMyApplications, MAX_APPLICATIONS_PAGE } from '../context/applicationApi'
+import { canReapplyApplication, fetchMyApplications, MAX_APPLICATIONS_PAGE } from '../context/applicationApi'
 import DashboardLayout from '../components/DashboardLayout'
 import ApplicationList from '../components/ApplicationList'
+import OpportunityApply from '../components/OpportunityApply'
 
 export default function MyApplications() {
   const { user, token, signOut } = useContext(AuthContext)
@@ -59,7 +60,11 @@ export default function MyApplications() {
       </div>
       <ApplicationList applications={loading ? [] : result.applications} page={page}
         hasNextPage={!loading && result.hasNextPage} loading={loading} error={loading ? '' : result.error}
-        onRefresh={refreshApplications} onPageChange={changePage} />
+        onRefresh={refreshApplications} onPageChange={changePage}
+        renderActions={(application) => canReapplyApplication(application) ? <OpportunityApply
+          key={`${user.id}:${token}:${application._id}:${application.status}`} reapply
+          opportunityId={application.opportunity._id} opportunityTitle={application.opportunity.title}
+          onSubmitted={refreshApplications} /> : null} />
     </DashboardLayout>
   )
 }

@@ -214,17 +214,29 @@ export async function installMockApi(context, state, { signedIn = true, theme = 
     if ((path === '/applications' || path === '/applications/me') && method === 'GET') {
       const status = url.searchParams.get('status')
       const records = state.applications.filter((item) => (!status || status === item.status) && (state.role === 'admin' || item.student === current()._id))
+      records.sort((a, b) => (b.updatedAt || b.createdAt).localeCompare(a.updatedAt || a.createdAt) || b._id.localeCompare(a._id))
       return list('applications', records.map((item) => ({ ...item, student: state.role === 'admin' ? user(item.student) : item.student, opportunity: opportunity(item.opportunity) })))
     }
     if (path === '/applications' && method === 'POST') {
-      if (state.applications.some((item) => item.opportunity === values.opportunityId && item.student === current()._id)) return reply('You already applied for this opportunity.', 409)
-      const created = { _id: nextId(), opportunity: values.opportunityId, student: current()._id, status: 'pending', rejectionReason: '', createdAt: stamp() }
+      const selected = state.opportunities.find((item) => item._id === values.opportunityId)
+      if (!selected) return reply('Opportunity not found.', 404)
+      if (selected.status !== 'open' || Date.parse(selected.deadline) <= Date.now()) return reply('This opportunity is closed or its deadline has passed.', 400)
+      const found = state.applications.find((item) => item.opportunity === values.opportunityId && item.student === current()._id)
+      if (found) {
+        if (found.status !== 'rejected') return reply('You already applied for this opportunity.', 409)
+        Object.assign(found, { status: 'pending', rejectionReason: '', reviewedBy: null, reviewedAt: null, updatedAt: new Date().toISOString() })
+        return reply({ application: found })
+      }
+      const created = { _id: nextId(), opportunity: values.opportunityId, student: current()._id, status: 'pending', rejectionReason: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
       state.applications.unshift(created)
       return reply({ application: created }, 201)
     }
     if (/^\/applications\/[^/]+\/decision$/.test(path) && method === 'PATCH') {
       const found = state.applications.find((item) => item._id === path.split('/')[2])
-      Object.assign(found, { ...values, rejectionReason: values.rejectionReason || '', reviewedBy: current()._id, reviewedAt: stamp() })
+      if (!found) return reply('Application not found.', 404)
+      if (state.role !== 'admin') return reply('Administrator access required.', 403)
+      if (!(values.status === 'under_review' ? ['pending'] : ['pending', 'under_review']).includes(found.status)) return reply('This application has already moved beyond the requested review step.', 409)
+      Object.assign(found, { ...values, rejectionReason: values.rejectionReason || '', reviewedBy: current()._id, reviewedAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
       return reply({ application: found })
     }
     if (path === '/internships' && method === 'GET') return list('internships', state.internships.map(placement))

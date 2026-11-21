@@ -41,7 +41,7 @@ export async function updateInternshipStatus(req, res) {
         changedAt: new Date(), reason: reason?.trim() || '',
       } },
     },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!updated) {
     return res.status(409).json({ success: false, message: 'The internship changed during your request. Refresh and try again.' });
