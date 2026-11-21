@@ -6,14 +6,15 @@ departments, final evaluations and role-based dashboard counters.
 
 ## Run
 
-Use Node.js 22 or newer. Configure the existing `.env` locally with
+Use Node.js 22.12 or newer. Keep an existing `.env`; on a new installation,
+copy `.env.example` to `.env` and configure it locally with
 `MONGODB_URI`, a `JWT_SECRET` of at least 32 characters, and optionally `PORT`
 (default 5000) and `CLIENT_ORIGIN` (default http://localhost:5173).
 Never commit passwords, connection strings or tokens.
 
 ```powershell
 cd backend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -21,6 +22,23 @@ Sign in with `POST /api/v1/auth/signin`. Put the returned `data.token` in
 Postman's Authorization tab as a Bearer Token. Public signup always creates a
 student. Set the first admin's role directly in your own MongoDB database; later
 admins can create role-based accounts using `POST /api/v1/auth/create-user`.
+
+## Built Frontend
+
+See the [root setup guide](../README.md) for the complete beginner workflow.
+Build from the project root with `npm run build --prefix frontend`, then set
+`NODE_ENV=production` and run `npm start` in this folder. Express serves both
+`frontend/dist` and the API on port 5000. React route refreshes work; unknown
+API paths, hidden files and missing assets never fall back to HTML. Development
+mode stays API-only and uses the Vite proxy. A missing build stops production
+startup before connecting to MongoDB. PORT must be an integer from 1 to 65535.
+
+`app.js` configures the routes and middleware without opening a database
+connection. `server.js` loads settings, initializes MongoDB/indexes and starts
+listening only after initialization succeeds. SIGINT/SIGTERM stop accepting
+connections and close MongoDB, with a ten-second shutdown limit. Startup still
+backfills the existing ongoing-placement flag; back up a real database before
+deploying updates. Do not use an application database for fixture tests.
 
 ## Own Account and Profile Photo
 
@@ -89,6 +107,31 @@ query rechecks role and inactive status in case they changed after validation.
 All account-management writes require a valid admin session; other roles get
 403 and expired or inactive sessions get 401. No data migration is needed.
 
+## Rejected Applications
+
+Students use `POST /api/v1/applications` with only `opportunityId`. A first
+application returns 201. If this student's application for that opportunity was
+rejected, the same endpoint atomically reopens that record as `pending` and
+returns 200. Its ID, student, opportunity and original creation date remain;
+the old rejection reason, reviewer and review time are cleared. The existing
+unique student/opportunity index stays in place, with no database migration.
+
+Pending, under-review, approved and withdrawn applications still return 409
+on duplicate submission. A closed, archived or expired opportunity cannot be
+reapplied to. Identity and status remain server-controlled. Concurrent retries
+can reopen a rejected record only once, and resubmission never grants approval.
+
+Application lists sort by latest update, then ID, so a resubmitted application
+returns near the top of the admin queue. Refresh the admin Applications page,
+select Pending or All statuses, and review it normally. A rejected record stays
+locked against admin decisions until the student explicitly resubmits it.
+
+`tests/application-resubmission.test.js` covers repeated reject/reapply/approve
+rounds, ownership, eligibility and duplicate races using mocked database methods.
+The teacher daily-report workflow is separate: return for changes, student edit
+and submit, then assigned-teacher approval. Its tests also exercise two rounds
+and confirm that an approved report cannot be edited or submitted again.
+
 ## Departments and Student Information
 
 An admin creates a department with `POST /api/v1/departments`:
@@ -151,7 +194,7 @@ Send `GET /api/v1/dashboard/stats` with your token, without a body:
 - Academic supervisor: assigned internships and submitted report counters.
 - Company representative: own companies, open opportunities and internships.
 
-The response is JSON for a future frontend; this does not create a dashboard UI.
+The frontend Dashboard consumes these role-scoped JSON counters.
 Lists support `?page=1&limit=20` with a maximum limit of 100.
 
 ## Tests
@@ -172,6 +215,21 @@ It reads your MongoDB connection configuration, creates its own random
 `sims_test_...` database and removes only that database afterwards. The database
 account must allow creating and deleting that temporary database. The test never
 stores fixtures in the application's configured database.
+
+The isolated workflow also checks an actual rejected-application retry against
+the unique MongoDB index, admin approval, and two teacher correction/student
+resubmission rounds before daily approval. It passed on 2026-11-20, and only
+its generated test database was removed. The ordinary suite passed 53 checks
+with that single opt-in case skipped. `tests/production-app.test.js` adds three
+database-free checks of the complete middleware, production SPA/static routing,
+API 404s, security headers, body limits and missing-build protection.
+
+Unused cookie-parser, pino, pino-http, eslint, prettier and vitest dependencies
+were removed. Tests use Node's built-in runner and Supertest; nodemon remains
+for development. Existing Mongoose updates now use `returnDocument: 'after'`
+instead of the deprecated `new` option. Both lockfiles remain committed for
+repeatable installs; npm audit reported zero known backend vulnerabilities on
+the verification date.
 
 ## Navbar Inbox
 
@@ -203,7 +261,7 @@ live sockets, direct chat and delivery guarantees remain outside this scope.
 ## Scope and Limitations
 
 This is a small learning backend, not a production-complete university system.
-Push/email notifications, direct chat, uploads, exports, certificates, refresh tokens, password recovery,
+Push/email notifications, direct chat, general file attachments, exports, certificates, refresh tokens, password recovery,
 weekly supervisor review and further company/opportunity editing are deferred.
 Existing weekly draft editing and submission are retained.
 

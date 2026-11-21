@@ -96,7 +96,9 @@ npm run dev
 Then start the frontend from this folder with `npm run dev`. Vite forwards
 `/api` requests to the backend at `http://127.0.0.1:5000` during development.
 If the backend uses another port, update the proxy target in the Vite config.
-Production hosting will need its own API routing configuration.
+Production mode can serve the built frontend and API together through Express;
+see the [root setup guide](../README.md). Separate hosting still needs its own
+API routing configuration.
 
 Use an existing account's email and password. Sign in calls
 `POST /api/v1/auth/signin`. The page supports password visibility, pending and
@@ -653,6 +655,12 @@ index remains responsible for duplicate prevention, including across tabs.
 On page changes, refresh or reload, action state is not persisted; trying an
 already-submitted opportunity safely receives the backend's duplicate response.
 
+A rejected application is the exception: the student may use Apply again while
+the opportunity remains open and before its deadline. The backend reuses the
+same record, returns it to Pending, and clears the old rejection/reviewer fields;
+it does not create another application or automatically approve it. The same
+POST accepts HTTP 200 for this resubmission and 201 for a first application.
+
 Requests retain the shared 15-second timeout and are aborted on unmount. Abort
 cannot undo a server write. Network, timeout, malformed-response and server
 failures may happen after a save, so they do not claim success: the error asks
@@ -669,6 +677,14 @@ applications show their plain-text rejection reason when present. Missing
 referenced opportunities/companies have explicit unavailable labels; old,
 closed or expired opportunities do not remove applications from history.
 
+Eligible rejected records have an **Apply again** button directly in My
+applications. It uses the same guarded submit action as Opportunities and
+refreshes the saved status after success. Pending, approved, under-review,
+withdrawn, missing, closed and expired opportunities have no reapply action.
+Lists use latest-update order, while **Applied** retains the original creation
+date. Backend eligibility checks remain authoritative if a deadline or status
+changes after the page loads.
+
 Dates use Asia/Kabul. Pagination uses the URL query for reload/history and the
 same full-page Next convention as Opportunities, since there is no total count.
 Loading, empty pages, refresh, errors and Retry are separate states. Obsolete
@@ -676,9 +692,9 @@ requests are cancelled and earlier-page/account data is hidden. The student
 route guard and navigation do not replace backend authorization. Other roles
 can still browse opportunities but see no Apply action or My applications link.
 
-The student page does not offer admin review controls, withdrawal, uploads, publishing
-forms, automatic internship creation, new dependencies or backend changes. No
-sample records or account changes are made by tests.
+The student page does not offer admin review controls, withdrawal, uploads,
+publishing forms or automatic internship creation. No new dependencies are
+needed, and tests do not modify real database records or accounts.
 
 To check locally with real existing accounts/data:
 
@@ -690,12 +706,18 @@ To check locally with real existing accounts/data:
 6. If an admin reviews the application through the existing backend, refresh the list to check the decision/rejection reason.
 7. Check both themes, long text and narrow screens. Test connection failures and expired sessions; uncertain submissions must not claim success.
 8. As each non-student role, check that Apply/My applications are absent and direct `/applications` navigation returns to the dashboard.
+9. Reject an intended test application as admin. As the student, open My applications and choose Apply again. Confirm Pending replaces Rejected with no second record. As admin, refresh Applications, select Pending or All statuses and approve it. Repeat a rejection/resubmission round if needed.
 
-Automated tests use mocked API responses and server-rendered markup for request
+Ordinary Node tests use mocked API responses and server-rendered markup for request
 payloads, response validation, status labels, errors, cancellation/timeouts,
 pagination, escaped text, action states and student-only navigation/guards.
 They do not execute browser clicks, request-lock behavior, history or a real
-authenticated database submission; those require an interactive browser check.
+authenticated database submission. The separate Playwright checks in
+`tests/browser/application-resubmission.pw.js` exercise two full admin/student
+reject/reapply/review rounds, resubmission from Opportunities, eligibility,
+pending locks, failure/expiry handling and two actual student/teacher report
+correction/submission rounds followed by approval. Browser API data is mocked;
+these checks do not change real accounts or application/report records.
 
 ## Admin Application Review
 
@@ -719,7 +741,9 @@ Expand **Review application** on a pending or under-review record, choose a
 decision and explicitly select **Save decision**. Pending applications can move
 to Under review, Approved or Rejected. Under-review applications can only be
 approved or rejected. Approved, rejected and withdrawn records have no review
-form. The backend remains authoritative if another admin makes a decision.
+form. A student can explicitly resubmit an eligible rejection, returning it to
+Pending; refresh and choose Pending or All statuses to review it again. The
+backend remains authoritative if another admin makes a decision.
 
 `PATCH /api/v1/applications/:id/decision` receives only `status`, plus a trimmed
 `rejectionReason` for rejection. A reason of 1-1000 characters is required.
@@ -1462,26 +1486,37 @@ Latest verification results:
 
 | Check | Result |
 | --- | --- |
-| Frontend `npm test` | 564 passed, no failures or skips |
-| Ordinary backend `npm test` | 46 passed, 1 opt-in MongoDB test skipped |
-| Frontend `npm run build` | Passed; existing large-chunk advisory remains |
-| Frontend `npm run lint` | No errors; existing DailyReportForm date-purity warning remains |
+| Frontend `npm test` | 568 passed, no failures or skips |
+| Ordinary backend `npm test` | 53 passed, 1 opt-in MongoDB test skipped |
+| Frontend `npm run build` | Passed without the previous large-chunk advisory; application/vendor chunks are separated |
+| Frontend `npm run lint` | No errors or warnings; daily report UTC date is maintained in page state and supplied to the form |
 | Earlier local frontend route requests | 15 SPA entry URLs returned HTTP 200; not authenticated browser acceptance or a fresh acceptance run |
 | Earlier unauthenticated protected API GETs | All 12 checked endpoints returned HTTP 401 through the Vite proxy; not repeated for this commit batch |
-| Full Playwright `npm run test:browser` | All 92 tests passed, including existing workflows, user categories, company cards, navbar inbox, Settings and navbar search; all API data mocked |
+| Earlier Vite Playwright `npm run test:browser` | All 96 tests passed; all API data mocked |
+| Production Playwright `npm run test:browser:production` | All 96 tests passed against the built app served by Express, including user categories, company cards, inbox, Settings, navbar search and rejected-application resubmission; all API data mocked |
+| Included application/report resubmission browser checks | Four tests passed: repeated rejection/reapplication/admin approval, opportunity-page retry, eligibility and failed/expired writes, and repeated teacher correction/resubmission/approval |
 | Included Settings browser checks | 12 tests passed: all-role navigation, shared/persistent theme, validation, incorrect current password, pending locks, successful change/new sign-in, clear/discard, uncertain/expired responses, mobile footer and responsive/theme layouts |
 | Included shared-layout browser checks | Six tests passed: all four roles' complete loaded page/theme/viewport matrices, signup/login/theme/logout, and mobile drawer cleanup |
 | Included company / Users browser checks | Five company-card tests and 15 Users tests passed, including the form-above-list layouts |
 | Included inbox browser checks | Nine tests passed: feedback, report submissions, saved read state, polling, account switching, concurrent new activity, failures, expired sessions and responsive keyboard-accessible panels |
 | Included navbar browser checks | Ten tests passed: role-aware page search, keyboard selection/scrolling/dismissal, query isolation, own-account links and long identities at eight widths from 320 to 1920 pixels in both themes |
 | Responsive/theme browser checks | 210 loaded role/page/viewport/theme checks including Settings, plus profile/dashboard/category/company layouts; Settings and validation states checked at 320/768/1440 widths in both themes with screenshots visually inspected; earlier inbox checks at 320x568, 768x1000 and 1440x1000 remain documented above |
-| Browser server / live backend acceptance | Vite served the browser suite on port 5173; all API responses were mocked. Live authenticated backend acceptance was not performed |
-| Real MongoDB integration | Not run: opt-in test deliberately disabled |
+| Browser server / live backend acceptance | Express served the final built-app browser suite on port 5180 with mocked API replies; real MongoDB API acceptance ran separately, not through the browser |
+| Real MongoDB integration | Passed separately in an isolated randomly named database, including reapplication and repeated teacher corrections; application database unchanged |
+| Dependency checks | npm audit reported zero known vulnerabilities in both frontend and backend on 2026-11-20 |
 
-On this Windows verification run, all 92 cases passed but Playwright's temporary
-Vite server stalled during teardown. Stopping only that test-owned server allowed
-the runner to finish with exit code 0 and a passed last-run record. This was test
-server cleanup, not a failed application case or a real-database acceptance run.
+The final 96-case production browser run finished with a passed last-run record.
+The multi-viewport navbar tests have a 90-second case limit and a 20-second
+screenshot limit after one earlier capture timed out; their layout assertions
+are unchanged. Application retry cards were also visually inspected in mobile
+dark and desktop light layouts. Browser API calls remained mocked; the separate
+real-MongoDB test exercised the backend directly in its temporary database.
+
+The final production build emits separate application (about 270 KB) and vendor
+(about 275 KB) JavaScript chunks instead of one 544 KB chunk. The bundler's
+module graph contains all current JavaScript/JSX source modules; none were
+removed as supposedly unused. Generated builds, dependencies and screenshots
+remain ignored, while tests, requirements and the Pashto guide are preserved.
 
 `tests/WorkspaceSmoke.test.js` checks every protected URL's role matrix, sidebar
 destinations/active links, and server-rendered pages in both theme contexts for
@@ -1516,6 +1551,20 @@ in a temporary, headless browser profile, not your personal browser session.
 Start Vite with `npm run dev` in one terminal, then run `npm run test:browser`
 in another. The configuration reuses `http://127.0.0.1:5173`, or starts its own
 temporary Vite server there if none is running. Port 5173 must serve this app.
+
+To check the actual shipping build instead, install both backend and frontend
+dependencies, run `npm run build`, then `npm run test:browser:production` from
+this folder. `playwright.production.config.js` runs the same browser cases
+against Express on port 5180, using the built scripts/styles and security
+headers. It starts `tests/browser/serveProduction.js`, which never connects to
+MongoDB. The test API remains intercepted. Keep 5180 free; the test refuses to
+reuse an unrelated server. Its screenshots/results stay ignored under
+`node_modules/.cache/playwright-production-results`.
+
+GitHub Actions runs ordinary backend/frontend tests, frontend lint/build, and
+this production browser suite using Chromium. It requires no application
+credentials or MongoDB connection. The default local channel remains Edge;
+set `PLAYWRIGHT_CHANNEL=chromium` to use an installed Playwright Chromium.
 No Playwright browser download is needed when Edge is already installed.
 For an installed Chrome instead, use PowerShell:
 
@@ -1543,7 +1592,9 @@ Browser coverage includes:
 - All four dashboards in both themes at 320, 768 and 1440 pixels, permitted shortcuts, real/zero/large counts, loading/refresh/retry, expired sessions and reduced-motion animation behavior.
 - Admin department/user/company creation, explicit account-access confirmation, representative assignment, student directory, application review and internship assignment/history.
 - Opportunity publication validation, Kabul deadline conversion, pending locks, repeated submission prevention and student application/duplicate handling.
+- Rejected-application retries from My applications and Opportunities, repeated admin rejection/review/approval, same-record identity, cleared review details, eligibility, uncertain/expired writes and responsive retry cards in both themes.
 - Daily and weekly draft creation/editing/submission, assigned-supervisor change requests/approval and read-only submitted reports.
+- Repeated assigned-teacher correction requests, student save followed by explicit resubmission, teacher approval and approved-report edit protection.
 - Both evaluation types: review without writing, Back preserving a zero score, and explicit final confirmation before recording.
 
 Screenshots and failure diagnostics go under
