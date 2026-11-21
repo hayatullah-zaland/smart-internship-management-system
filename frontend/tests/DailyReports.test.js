@@ -12,7 +12,7 @@ const internship = { _id: '507f1f77bcf86cd799439017', status: 'active', startDat
 const values = { internshipId: internship._id, date: '2026-01-02', hours: '7.5', tasks: 'Built a form.', learning: 'Learned validation.', challenges: '' }
 const report = { _id: '507f1f77bcf86cd799439018', internship, student, date: '2026-01-02T00:00:00.000Z', hours: 7.5,
   tasks: values.tasks, learning: values.learning, challenges: '', status: 'draft', submittedAt: null, reviewedAt: null, reviewedBy: null, feedback: '' }
-const formDefaults = { values, errors: {}, internships: [internship], loading: false, optionsError: '', saving: false, disabled: false, editing: null, onChange() {}, onSubmit() {}, onCancel() {} }
+const formDefaults = { values, errors: {}, internships: [internship], loading: false, optionsError: '', saving: false, disabled: false, editing: null, today: '2026-01-02', onChange() {}, onSubmit() {}, onCancel() {} }
 const listDefaults = { reports: [report], page: 1, hasNextPage: false, loading: false, error: '', student: true, onRefresh() {}, onPageChange() {}, onEdit() {}, onSubmit() {} }
 
 before(async () => {
@@ -58,6 +58,12 @@ test('edit form keeps the report date readonly and never offers a new internship
   assert.match(html, /Save changes/)
   assert.match(html.match(/<input[^>]*id="report-date"[^>]*>/)[0], /readOnly=""/)
   assert.doesNotMatch(html, /<select|Save draft|Submit report/)
+})
+
+test('report date stops at the current UTC day or the earlier internship end date', () => {
+  const dateField = (props) => renderForm(props).match(/<input[^>]*id="report-date"[^>]*>/)[0]
+  assert.match(dateField({ today: '2026-01-02' }), /min="2026-01-01" max="2026-01-02"/)
+  assert.match(dateField({ today: '2026-11-20' }), /min="2026-01-01" max="2026-10-01"/)
 })
 
 test('missing, loading and failed placement choices are honest and retain the draft', () => {

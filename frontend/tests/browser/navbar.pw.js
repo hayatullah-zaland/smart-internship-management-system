@@ -82,6 +82,7 @@ test('keyboard selection scrolls the last result into view and a changed account
 })
 
 for (const role of roles) test(`${role}: refreshed navbar fits all breakpoints and both themes with a long identity`, async ({ context, page }, testInfo) => {
+  test.setTimeout(90000)
   const state = await open(context, page, role)
   const user = state.users.find((record) => record._id === state.signedInUserId)
   user.name = 'LongAccountName'.repeat(6)
@@ -113,7 +114,7 @@ for (const role of roles) test(`${role}: refreshed navbar fits all breakpoints a
       expect(results.x + results.width).toBeLessThanOrEqual(width)
       if ([320, 1440, 1920].includes(width)) {
         await page.mouse.move(0, 0)
-        await page.screenshot({ path: testInfo.outputPath(`navbar-${role}-${width}-${theme}.png`), animations: 'disabled' })
+        await page.screenshot({ path: testInfo.outputPath(`navbar-${role}-${width}-${theme}.png`), animations: 'disabled', timeout: 20000 })
       }
       await search(page).press('Escape')
       await search(page).fill('')

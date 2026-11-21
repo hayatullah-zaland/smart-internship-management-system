@@ -21,6 +21,7 @@ export default function DailyReports() {
 export function DailyReportsWorkspace({ page, onPageChange }) {
   const { user, token, signOut } = useContext(AuthContext)
   const student = user.role === 'student'
+  const [today, setToday] = useState(() => new Date().toISOString().slice(0, 10))
   const [refresh, setRefresh] = useState(0)
   const [result, setResult] = useState({ key: null, reports: [], hasNextPage: false, error: '' })
   const [choices, setChoices] = useState({ key: null, internships: [], error: '' })
@@ -40,6 +41,11 @@ export function DailyReportsWorkspace({ page, onPageChange }) {
     : loadingChoices || Boolean(choices.error) || !choices.internships.length)
 
   useEffect(() => () => requestRef.current?.abort(), [])
+  useEffect(() => {
+    if (!student) return
+    const timer = window.setInterval(() => setToday(new Date().toISOString().slice(0, 10)), 60000)
+    return () => window.clearInterval(timer)
+  }, [student])
   useEffect(() => {
     const controller = new AbortController()
     async function loadReports() {
@@ -144,7 +150,7 @@ export function DailyReportsWorkspace({ page, onPageChange }) {
         {editingId && !loading && (!editing || editing.internship?.status !== 'active' || !['draft', 'changes_requested'].includes(editing.status))
           && <p role="alert" className="mt-6 text-sm text-error">This report is no longer editable. Cancel edit to start another report.</p>}
         <DailyReportForm values={values} errors={errors} internships={choices.internships} editing={editingId ? editing || { internship: null } : null}
-          loading={loadingChoices} optionsError={choices.error} disabled={Boolean(formBlocked)} saving={write.action === 'save'}
+          loading={loadingChoices} optionsError={choices.error} disabled={Boolean(formBlocked)} saving={write.action === 'save'} today={today}
           onChange={changeField} onSubmit={save} onCancel={clearEditor} />
       </div>}
       <DailyReportList reports={result.reports} page={page} hasNextPage={!loading && result.hasNextPage} loading={loading}

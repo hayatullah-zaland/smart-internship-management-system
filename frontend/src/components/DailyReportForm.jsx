@@ -1,8 +1,7 @@
 import { Save, X } from 'lucide-react'
 
-export default function DailyReportForm({ values, errors, internships, editing, loading, optionsError, saving, disabled, onChange, onSubmit, onCancel }) {
+export default function DailyReportForm({ values, errors, internships, editing, loading, optionsError, saving, disabled, today, onChange, onSubmit, onCancel }) {
   const selected = editing?.internship || internships.find((item) => item._id === values.internshipId)
-  const today = new Date().toISOString().slice(0, 10)
   const maxDate = selected?.endDate?.slice(0, 10) < today ? selected.endDate.slice(0, 10) : today
   return (
     <section className="border-b border-base-300 py-8" aria-labelledby="report-form-heading">

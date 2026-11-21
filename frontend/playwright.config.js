@@ -7,6 +7,7 @@ export default defineConfig({
   expect: { timeout: 10000 },
   workers: 1,
   retries: 0,
+  forbidOnly: Boolean(process.env.CI),
   reporter: 'list',
   outputDir: './node_modules/.cache/playwright-results',
   use: {

@@ -1,0 +1,50 @@
+name: Project Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+      - name: Backend tests (no application database)
+        run: npm test
+        working-directory: backend
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+      - name: Frontend tests
+        run: npm test
+        working-directory: frontend
+      - name: Frontend lint
+        run: npm run lint
+        working-directory: frontend
+      - name: Frontend production build
+        run: npm run build
+        working-directory: frontend
+      - name: Install isolated browser
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Built frontend browser tests (mock API data)
+        run: npm run test:browser:production
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_CHANNEL: chromium

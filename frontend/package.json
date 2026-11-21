@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
     "test": "node --test",
     "test:browser": "playwright test",
+    "test:browser:production": "playwright test --config playwright.production.config.js",
     "preview": "vite preview"
   },
   "dependencies": {
